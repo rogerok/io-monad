@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { pure, readLine, writeLine } from "../../src/index.ts";
+import { pure, readLine, writeLine } from "../../src/ constructors.ts";
 
 describe("E2.1 — pure", () => {
   it("produces a node with tag 'pure'", () => {

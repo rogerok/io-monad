@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { bind, pure } from "../../src/index.ts";
+import { pure } from "../../src/ constructors.ts";
+import { bind } from "../../src/index.ts";
 
 function buildLeftAssociated(n: number): unknown {
   let prog: any = pure(0);

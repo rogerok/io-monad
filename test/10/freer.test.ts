@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 //   - Freer (type)
 //   - runFreer(program, world): Promise<A>
 //   - pure, readLine, writeLine, fetchUrl (re-using or re-implementing)
-// We import dynamically so earlier tests still run if Part 10 isn't done.
+// We import dynamically so earlier test still run if Part 10 isn't done.
 
 async function loadFreer() {
   const mod = (await import("../../src/index.ts")) as Record<string, unknown>;

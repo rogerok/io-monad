@@ -103,7 +103,7 @@ describe("E8.3 ★★ — Symbol.iterator not visible in JSON.stringify", () => 
     const node = writeLine("test");
     const json = JSON.stringify(node);
     // Symbol.iterator cannot appear as a string key in JSON, but the
-    // test checks that the serialised shape contains only the expected fields.
+    // test-vasya checks that the serialised shape contains only the expected fields.
     const parsed = JSON.parse(json) as Record<string, unknown>;
     const keys = Object.keys(parsed);
     expect(keys).not.toContain("Symbol(Symbol.iterator)");

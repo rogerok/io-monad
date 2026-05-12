@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { greeting } from "../../src/index.ts";
+import { greeting } from "../../src/mock.ts";
 import { IO } from "../../src/type.ts";
 
 describe("E1.2 — greeting tree", () => {

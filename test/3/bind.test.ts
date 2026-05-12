@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { addThen, bind, map, pure, readLine, writeLine } from "../../src/index.ts";
+import { pure, readLine, writeLine } from "../../src/ constructors.ts";
+import { andThen, bind, map } from "../../src/index.ts";
 // Minimal interpreter — independent of the student's runIO.
-// Lets us test bind/map/addThen behaviour before Part 5.
+// Lets us test-vasya bind/map/addThen behaviour before Part 5.
 function runSync<A>(io: unknown, inputs: string[]): { output: string[]; value: A } {
   const output: string[] = [];
   let current = io as any;
@@ -84,20 +85,20 @@ describe("E3.2 — map", () => {
 
 describe("E3.2 — addThen", () => {
   it("addThen runs the first IO and discards its value", () => {
-    const program = addThen(writeLine("first"), writeLine("second"));
+    const program = andThen(writeLine("first"), writeLine("second"));
     const { output } = runSync(program, []);
     expect(output).toEqual(["first", "second"]);
   });
 
   it("addThen(readLine, pure(42)) reads input and returns 42", () => {
-    const program = addThen(readLine, pure(42));
+    const program = andThen(readLine, pure(42));
     const { value } = runSync<number>(program, ["ignored"]);
     expect(value).toBe(42);
   });
 
   it("addThen result type is that of the second IO", () => {
     // Type check: addThen(IO<string>, IO<number>) : IO<number>
-    const result: ReturnType<typeof pure<number>> = addThen(readLine, pure(99));
+    const result: ReturnType<typeof pure<number>> = andThen(readLine, pure(99));
     const { value } = runSync<number>(result, ["anything"]);
     expect(value).toBe(99);
   });

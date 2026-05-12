@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { bind, myProgram, pure, readLine, runIO, writeLine } from "../../src/index.ts";
+import { pure, readLine, writeLine } from "../../src/ constructors.ts";
+import { bind } from "../../src/index.ts";
+import { myProgram } from "../../src/program.ts";
+import { runIO } from "../../src/run-io.ts";
 import { loggingWorld, testWorld } from "../../src/world.ts";
 
 describe("E6.1 — testWorld", () => {
@@ -82,7 +85,7 @@ describe("E6.3 ★ — loggingWorld", () => {
       logged,
     );
     // If loggingWorld exposes a log, it should have entries.
-    // If it doesn't expose one, this test is informational only.
+    // If it doesn't expose one, this test-vasya is informational only.
     expect(logged).toBeDefined();
   });
 });

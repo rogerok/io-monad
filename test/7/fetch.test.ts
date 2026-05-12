@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { bind, fetchUrl, pure, runIO, testWorld, writeLine } from "../../src/index.ts";
+import { pure, writeLine } from "../../src/ constructors.ts";
+import { bind, fetchUrl, testWorld } from "../../src/index.ts";
+import { runIO } from "../../src/run-io.ts";
 
 describe("E7.1 — fetchUrl constructor", () => {
   it("fetchUrl returns a node with tag 'fetch'", () => {

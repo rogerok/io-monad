@@ -8,10 +8,10 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { andThen, bind, map, sequence } from "../src";
-import { pure, readLine, writeLine } from "../src/ constructors.ts";
+import { fetchUrl, pure, readLine, writeLine } from "../src/ constructors.ts";
 import { runIO } from "../src/run-io.ts";
 import { IO } from "../src/type.ts";
-import { testWorld } from "../src/world.ts";
+import { loggingWorld, testWorld } from "../src/world.ts";
 
 describe("E1 -- DSL и типы", () => {
   it("IO<A>, обычное значение, не функция", () => {

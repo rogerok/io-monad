@@ -15,3 +15,10 @@ export const writeLine = (text: string): IO<void> => ({
   tag: "writeLine",
   text,
 });
+
+export const fetchUrl = (url: string, options?: RequestInit): IO<string> => ({
+  next: pure,
+  options,
+  tag: "fetch",
+  url,
+});

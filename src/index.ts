@@ -18,6 +18,14 @@ export const bind = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => {
         next: (a) => bind(io.next(a), f),
         tag: "readLine",
       };
+
+    case "fetch":
+      return {
+        next: (body) => bind(io.next(body), f),
+        options: io.options,
+        tag: "fetch",
+        url: io.url,
+      };
   }
 };
 

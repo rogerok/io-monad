@@ -33,7 +33,7 @@ describe("E10.1 — Freer: bind does not change when a new effect is added", () 
     if (!freer) return;
 
     const { bind, pure, runFreer, testWorld, writeLine } = freer;
-    const world = testWorld([]);
+    const world = testWorld({ inputs: [] });
     const program = bind(writeLine("hello"), () => pure(undefined));
     await runFreer(program, world);
     expect(world.output).toEqual(["hello"]);
@@ -43,7 +43,7 @@ describe("E10.1 — Freer: bind does not change when a new effect is added", () 
     const freer = await loadFreer();
     if (!freer) return;
     const { myProgram, runFreer, testWorld } = freer;
-    const world = testWorld(["Alice", "30"]);
+    const world = testWorld({ inputs: ["Alice", "30"] });
     await runFreer(myProgram, world);
     expect(world.output).toEqual([
       "What is your name?",
@@ -62,7 +62,7 @@ describe("E10.2 ★ — adding Random effect without touching bind", () => {
 
     const random = mod["random"];
     const { bind, runFreer, testWorld, writeLine } = freer;
-    const world = testWorld([]);
+    const world = testWorld({ inputs: [] });
     const program = bind(random, (n: unknown) => writeLine(`random: ${n}`));
     await runFreer(program, world);
     expect(world.output).toHaveLength(1);
@@ -82,7 +82,7 @@ describe("E10.3 ★★ — runWithLogging", () => {
       world: unknown,
     ) => Promise<unknown>;
     const { bind, pure, testWorld, writeLine } = freer;
-    const world = testWorld([]);
+    const world = testWorld({ inputs: [] });
     const program = bind(writeLine("test"), () => pure(undefined));
     await runWithLogging(program, world);
     expect(world.output).toEqual(["test"]);

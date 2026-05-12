@@ -22,6 +22,10 @@ export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {
         current = current.next(res);
         break;
       }
+      case "fetch": {
+        const body = await world.fetch(current.url, current.options);
+        current = current.next(body);
+      }
     }
   }
 };

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { pure, writeLine } from "../../src/ constructors.ts";
-import { bind, fetchUrl, testWorld } from "../../src/index.ts";
+import { fetchUrl } from "../../src/ constructors.ts";
+import { bind } from "../../src/index.ts";
 import { runIO } from "../../src/run-io.ts";
+import { testWorld } from "../../src/world.ts";
 
 describe("E7.1 — fetchUrl constructor", () => {
   it("fetchUrl returns a node with tag 'fetch'", () => {
@@ -25,14 +27,20 @@ describe("E7.1 — fetchUrl constructor", () => {
 
 describe("E7.1 — runIO handles fetch", () => {
   it("fetch result is passed to the continuation", async () => {
-    const world = testWorld([], { "https://api.test/data": "response-body" });
+    const world = testWorld({
+      fetchMocks: { "https://api.test/data": "response-body" },
+      inputs: [],
+    });
     const program = bind(fetchUrl("https://api.test/data"), (body) => pure(body));
     const result = await runIO(program, world);
     expect(result).toBe("response-body");
   });
 
   it("fetch result can be written to output", async () => {
-    const world = testWorld([], { "https://api.test/greet": "Hello from API" });
+    const world = testWorld({
+      fetchMocks: { "https://api.test/greet": "Hello from API" },
+      inputs: [],
+    });
     const program = bind(fetchUrl("https://api.test/greet"), (body) => writeLine(body));
     await runIO(program, world);
     expect(world.output).toEqual(["Hello from API"]);
@@ -41,14 +49,14 @@ describe("E7.1 — runIO handles fetch", () => {
 
 describe("E7.2 — testWorld: fail loud on unmocked URL", () => {
   it("throws when URL is not mocked", async () => {
-    const world = testWorld([], {});
+    const world = testWorld({ fetchMocks: {}, inputs: [] });
     const program = fetchUrl("https://unmocked.test/endpoint");
     await expect(runIO(program, world)).rejects.toThrow(/unmocked\.test\/endpoint|not mocked/i);
   });
 
   it("succeeds when the URL is mocked", async () => {
     const url = "https://mocked.test/ok";
-    const world = testWorld([], { [url]: "ok" });
+    const world = testWorld({ fetchMocks: { [url]: "ok" }, inputs: [] });
     const result = await runIO(
       bind(fetchUrl(url), (b) => pure(b)),
       world,
@@ -58,10 +66,8 @@ describe("E7.2 — testWorld: fail loud on unmocked URL", () => {
 });
 
 describe("E7.3 ★ — Sleep", () => {
-  it("sleep node has tag 'sleep' and ms field", () => {
-    // Import sleep if the student exported it
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require("../../src/index.ts") as Record<string, unknown>;
+  it("sleep node has tag 'sleep' and ms field", async () => {
+    const mod = (await import("../../src/index.ts")) as Record<string, unknown>;
     if (!("sleep" in mod)) {
       // Not yet implemented — skip gracefully
       return;

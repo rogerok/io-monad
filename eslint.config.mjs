@@ -2,6 +2,7 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
 import perfectionist from "eslint-plugin-perfectionist";
+import noComplexInlineType from "./no-complex-inline-type.mjs";
 
 export default [
   {
@@ -18,8 +19,14 @@ export default [
     },
     plugins: {
       perfectionist,
+      local: {
+        rules: {
+          "no-complex-inline-type": noComplexInlineType,
+        },
+      },
     },
     rules: {
+      "local/no-complex-inline-type": "error",
       "@typescript-eslint/explicit-function-return-type": [
         "warn",
         {

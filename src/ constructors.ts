@@ -22,3 +22,9 @@ export const fetchUrl = (url: string, options?: RequestInit): IO<string> => ({
   tag: "fetch",
   url,
 });
+
+export const sleep = (ms: number): IO<void> => ({
+  ms,
+  next: pure(undefined),
+  tag: "sleep",
+});

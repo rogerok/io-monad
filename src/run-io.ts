@@ -1,4 +1,5 @@
 import { IO, World } from "./type.ts";
+import { exhaustive } from "./utils.ts";
 
 export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {
   let current: IO<any> = io;
@@ -22,10 +23,21 @@ export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {
         current = current.next(res);
         break;
       }
+
       case "fetch": {
         const body = await world.fetch(current.url, current.options);
         current = current.next(body);
+        break;
       }
+
+      case "sleep": {
+        await world.sleep(current.ms);
+        current = current.next;
+        break;
+      }
+
+      default:
+        return exhaustive(current);
     }
   }
 };

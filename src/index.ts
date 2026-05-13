@@ -1,5 +1,6 @@
 import { pure } from "./ constructors.ts";
 import { IO } from "./type.ts";
+import { exhaustive } from "./utils.ts";
 
 export const bind = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => {
   switch (io.tag) {
@@ -9,23 +10,33 @@ export const bind = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => {
     case "writeLine":
       return {
         next: bind(io.next, f),
-        tag: "writeLine",
+        tag: io.tag,
         text: io.text,
       };
 
     case "readLine":
       return {
         next: (a) => bind(io.next(a), f),
-        tag: "readLine",
+        tag: io.tag,
       };
 
     case "fetch":
       return {
         next: (body) => bind(io.next(body), f),
         options: io.options,
-        tag: "fetch",
+        tag: io.tag,
         url: io.url,
       };
+
+    case "sleep":
+      return {
+        ms: io.ms,
+        next: bind(io.next, f),
+        tag: io.tag,
+      };
+
+    default:
+      return exhaustive(io);
   }
 };
 

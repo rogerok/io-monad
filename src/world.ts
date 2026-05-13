@@ -11,6 +11,8 @@ export type TestWorld = {
   output: string[];
 } & World;
 
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
 export const testWorld = (args?: {
   fetchMocks?: Record<string, string>;
   inputs?: string[];
@@ -26,10 +28,10 @@ export const testWorld = (args?: {
     fetch: async (url: string) => {
       const mockUrl = fetchMocks[url];
 
-      if (!mockUrl) {
+      if (mockUrl === undefined) {
         throw new Error(`fetch to ${url} not mocked`);
       }
-      fetches.push({ url: mockUrl });
+      fetches.push({ url });
 
       return mockUrl;
     },
@@ -43,13 +45,14 @@ export const testWorld = (args?: {
 
       const value = inputs[cursor];
 
-      if (!value) {
+      if (value === undefined) {
         throw new Error("Can't read line");
       }
 
       cursor += 1;
       return value;
     },
+    sleep,
     //  eslint-disable-next-line @typescript-eslint/require-await
     writeLine: async (s: string) => {
       output.push(s);
@@ -64,6 +67,9 @@ export const productionBrowserWorld: World = {
   },
   //  eslint-disable-next-line @typescript-eslint/require-await
   readLine: async () => prompt() ?? "",
+  sleep: (ms) => {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  },
   //  eslint-disable-next-line @typescript-eslint/require-await
   writeLine: async (s: string) => {
     console.log(s);
@@ -77,8 +83,8 @@ export const productionNodeWorld = (): World => {
   });
 
   return {
-    fetch: async (url: string) => {
-      const resp = await fetch(url);
+    fetch: async (url: string, options?: RequestInit) => {
+      const resp = await fetch(url, options);
       return await resp.text();
     },
     readLine: async () => {
@@ -88,6 +94,7 @@ export const productionNodeWorld = (): World => {
         });
       });
     },
+    sleep,
     //  eslint-disable-next-line @typescript-eslint/require-await
     writeLine: async (s: string) => {
       console.log(s);
@@ -95,19 +102,23 @@ export const productionNodeWorld = (): World => {
   };
 };
 
-type LogConfig = {
+type LoggingWorldConfig = {
   log: (line: string) => void;
 };
 
-export const loggingWorld = (inner: World, logConfig: LogConfig): World => ({
-  fetch: async (url: string) => {
+export const loggingWorld = (inner: World, logConfig: LoggingWorldConfig): World => ({
+  fetch: async (url: string, options?: RequestInit) => {
     logConfig.log("fetch " + url);
-    return await inner.fetch(url);
+    return await inner.fetch(url, options);
   },
   readLine: async () => {
     const result = await inner.readLine();
     logConfig.log("readLine " + result);
     return result;
+  },
+  sleep: async (ms: number) => {
+    logConfig.log("sleep " + ms.toString());
+    await inner.sleep(ms);
   },
   writeLine: async (s: string) => {
     logConfig.log("writeLine " + s);

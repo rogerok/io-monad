@@ -5,6 +5,7 @@ import { fetchUrl, readLine, writeLine } from "./ constructors.ts";
 import { bind } from "./index.ts";
 import { runIO } from "./run-io.ts";
 import { IO } from "./type.ts";
+import { sleep } from "./utils.ts";
 
 const myProgram: IO<void> = bind(writeLine("What is your name?"), () =>
   bind(readLine, (name) =>
@@ -43,6 +44,7 @@ void (async () => {
       // }
     },
     readLine: () => rl.question(""),
+    sleep: sleep,
     //  eslint-disable-next-line @typescript-eslint/require-await
     writeLine: async (s: string) => {
       console.log(s);

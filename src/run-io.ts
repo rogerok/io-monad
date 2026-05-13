@@ -36,6 +36,11 @@ export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {
         break;
       }
 
+      case "suspend": {
+        current = current.thunk();
+        break;
+      }
+
       default:
         return exhaustive(current);
     }

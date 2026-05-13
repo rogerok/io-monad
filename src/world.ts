@@ -1,6 +1,7 @@
 import { createInterface } from "node:readline";
 
 import { World } from "./type.ts";
+import { sleep } from "./utils.ts";
 
 type Fetches = {
   url: string;
@@ -10,8 +11,6 @@ export type TestWorld = {
   fetches: Fetches[];
   output: string[];
 } & World;
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const testWorld = (args?: {
   fetchMocks?: Record<string, string>;

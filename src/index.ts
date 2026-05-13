@@ -35,6 +35,12 @@ export const bind = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => {
         tag: io.tag,
       };
 
+    case "suspend":
+      return {
+        tag: io.tag,
+        thunk: () => bind(io.thunk(), f),
+      };
+
     default:
       return exhaustive(io);
   }

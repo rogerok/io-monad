@@ -28,3 +28,8 @@ export const sleep = (ms: number): IO<void> => ({
   next: pure(undefined),
   tag: "sleep",
 });
+
+export const suspend = <A>(thunk: () => IO<A>) => ({
+  tag: "suspend",
+  thunk,
+});

@@ -9,7 +9,7 @@ const doIO = ((undefined as unknown) as (fn: () => Generator<unknown, void, unkn
 describe.skip("E8.1 / E8.2 — doIO returns an IO value", () => {
   it("doIO(...) produces an object (value), not a function", () => {
     const program = doIO(function* () {
-      yield writeLine("hi");
+      yield* writeLine("hi");
     });
     expect(typeof program).toBe("object");
     expect(typeof program).not.toBe("function");
@@ -17,7 +17,7 @@ describe.skip("E8.1 / E8.2 — doIO returns an IO value", () => {
 
   it("the value has an IO tag at its root", () => {
     const program = doIO(function* () {
-      yield writeLine("hi");
+      yield* writeLine("hi");
     });
     const p = program as any;
     expect(typeof p.tag).toBe("string");
@@ -25,21 +25,21 @@ describe.skip("E8.1 / E8.2 — doIO returns an IO value", () => {
 });
 
 describe.skip("E8.1 / E8.2 — doIO runs correctly", () => {
-  it("yield writeLine writes to the world", async () => {
+  it("yield* writeLine writes to the world", async () => {
     const world = testWorld({ inputs: [] });
     const program = doIO(function* () {
-      yield writeLine("hello from doIO");
+      yield* writeLine("hello from doIO");
     });
     await runIO(program, world);
     expect(world.output).toEqual(["hello from doIO"]);
   });
 
-  it("yield readLine provides the value to subsequent yields", async () => {
+  it("yield* readLine provides the value to subsequent yields", async () => {
     const world = testWorld({ inputs: ["Slava"] });
     const program = doIO(function* () {
-      yield writeLine("Name?");
-      const name = yield readLine;
-      yield writeLine(`Hi, ${name}`);
+      yield* writeLine("Name?");
+      const name = yield* readLine;
+      yield* writeLine(`Hi, ${name}`);
     });
     await runIO(program, world);
     expect(world.output).toEqual(["Name?", "Hi, Slava"]);
@@ -48,9 +48,9 @@ describe.skip("E8.1 / E8.2 — doIO runs correctly", () => {
   it("multiple reads in sequence", async () => {
     const world = testWorld({ inputs: ["Alice", "30"] });
     const program = doIO(function* () {
-      const name = yield readLine;
-      const age = yield readLine;
-      yield writeLine(`${name} is ${age}`);
+      const name = yield* readLine;
+      const age = yield* readLine;
+      yield* writeLine(`${name} is ${age}`);
     });
     await runIO(program, world);
     expect(world.output).toEqual(["Alice is 30"]);
@@ -72,11 +72,11 @@ describe.skip("E8.4 ★ — all doIO variants produce identical output", () => {
     const doVariant = mod[key] as typeof doIO;
     const world = testWorld({ inputs: [...inputs] });
     const program = doVariant(function* () {
-      yield writeLine("What is your name?");
-      const name = yield readLine;
-      yield writeLine(`Hello, ${name}! How old are you?`);
-      const age = yield readLine;
-      yield writeLine(`Wow, ${name}, ${age} is a great age!`);
+      yield* writeLine("What is your name?");
+      const name = yield* readLine;
+      yield* writeLine(`Hello, ${name}! How old are you?`);
+      const age = yield* readLine;
+      yield* writeLine(`Wow, ${name}, ${age} is a great age!`);
     });
     await runIO(program, world);
     return world.output;

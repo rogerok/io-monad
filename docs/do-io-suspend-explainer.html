@@ -1,0 +1,1033 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>doIo, yield*, YieldWrap и suspend</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0d1117;
+        --panel: #151b23;
+        --panel-2: #1f2630;
+        --line: #303b49;
+        --text: #e6edf3;
+        --muted: #9da7b3;
+        --soft: #c6d0dc;
+        --blue: #58a6ff;
+        --green: #3fb950;
+        --yellow: #d29922;
+        --red: #ff7b72;
+        --violet: #bc8cff;
+        --code: #0a0f16;
+        --focus: #7dd3fc;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at top left, rgba(88, 166, 255, 0.13), transparent 34rem),
+          linear-gradient(180deg, #0d1117 0%, #0b0f14 100%);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.6;
+      }
+
+      a {
+        color: var(--focus);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      header {
+        border-bottom: 1px solid var(--line);
+        background: rgba(13, 17, 23, 0.86);
+        backdrop-filter: blur(10px);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+
+      .topbar {
+        align-items: center;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        margin: 0 auto;
+        max-width: 1180px;
+        padding: 0.85rem 1.25rem;
+      }
+
+      .brand {
+        display: grid;
+        gap: 0.1rem;
+      }
+
+      .brand strong {
+        font-size: 1rem;
+      }
+
+      .brand span {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        justify-content: flex-end;
+      }
+
+      nav a {
+        border: 1px solid transparent;
+        border-radius: 6px;
+        color: var(--soft);
+        font-size: 0.86rem;
+        padding: 0.35rem 0.55rem;
+        text-decoration: none;
+      }
+
+      nav a:hover {
+        background: var(--panel-2);
+        border-color: var(--line);
+      }
+
+      main {
+        margin: 0 auto;
+        max-width: 1180px;
+        padding: 2rem 1.25rem 4rem;
+        width: 100%;
+      }
+
+      .hero {
+        display: grid;
+        gap: 1rem;
+        padding: 1.25rem 0 1.5rem;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.18;
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 4vw, 4rem);
+        max-width: 920px;
+      }
+
+      h2 {
+        font-size: clamp(1.45rem, 2vw, 2.15rem);
+        margin-bottom: 0.75rem;
+      }
+
+      h3 {
+        font-size: 1.05rem;
+      }
+
+      p {
+        margin: 0.55rem 0;
+      }
+
+      .lead {
+        color: var(--soft);
+        font-size: 1.08rem;
+        max-width: 860px;
+      }
+
+      .note {
+        border-left: 3px solid var(--blue);
+        color: var(--soft);
+        margin-top: 1rem;
+        padding-left: 1rem;
+      }
+
+      section {
+        border-top: 1px solid var(--line);
+        padding: 2rem 0;
+      }
+
+      .grid {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .grid.two {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid.three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .panel {
+        background: rgba(21, 27, 35, 0.82);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 1rem;
+      }
+
+      .panel.compact {
+        padding: 0.75rem;
+      }
+
+      .pill {
+        align-items: center;
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--soft);
+        display: inline-flex;
+        font-size: 0.82rem;
+        gap: 0.4rem;
+        padding: 0.2rem 0.55rem;
+      }
+
+      .kpi {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .kpi strong {
+        color: var(--text);
+        display: block;
+        font-size: 1.2rem;
+      }
+
+      pre {
+        background: var(--code);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        color: #d6e7ff;
+        margin: 0.75rem 0 0;
+        overflow: auto;
+        padding: 0.9rem;
+      }
+
+      code {
+        font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+        font-size: 0.9em;
+      }
+
+      .code-title {
+        color: var(--muted);
+        font-size: 0.82rem;
+        margin-bottom: 0.35rem;
+      }
+
+      .flow {
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .flow-row {
+        align-items: stretch;
+        display: grid;
+        gap: 0.65rem;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .node {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        min-height: 76px;
+        padding: 0.75rem;
+        position: relative;
+      }
+
+      .node::after {
+        color: var(--muted);
+        content: "→";
+        font-size: 1.25rem;
+        position: absolute;
+        right: -0.55rem;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+
+      .node:last-child::after {
+        content: "";
+      }
+
+      .node.active {
+        border-color: var(--focus);
+        box-shadow: 0 0 0 2px rgba(125, 211, 252, 0.18);
+      }
+
+      .node strong {
+        display: block;
+        margin-bottom: 0.2rem;
+      }
+
+      .node span {
+        color: var(--muted);
+        display: block;
+        font-size: 0.86rem;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1rem;
+      }
+
+      button {
+        background: #1b6ac9;
+        border: 1px solid #2f81f7;
+        border-radius: 6px;
+        color: white;
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.92rem;
+        padding: 0.5rem 0.75rem;
+      }
+
+      button.secondary {
+        background: var(--panel-2);
+        border-color: var(--line);
+        color: var(--soft);
+      }
+
+      button:hover {
+        filter: brightness(1.08);
+      }
+
+      .sim {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
+
+      .state {
+        display: grid;
+        gap: 0.55rem;
+      }
+
+      .state-line {
+        align-items: center;
+        background: #111820;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        display: flex;
+        gap: 0.5rem;
+        justify-content: space-between;
+        padding: 0.55rem 0.65rem;
+      }
+
+      .state-line span:first-child {
+        color: var(--muted);
+      }
+
+      .state-line span:last-child {
+        color: var(--text);
+        font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+        text-align: right;
+      }
+
+      .timeline {
+        display: grid;
+        gap: 0.45rem;
+      }
+
+      .event {
+        background: #101720;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        color: var(--soft);
+        padding: 0.5rem 0.6rem;
+      }
+
+      .event.current {
+        border-color: var(--yellow);
+        color: var(--text);
+      }
+
+      .compare {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .bad {
+        border-color: rgba(255, 123, 114, 0.55);
+      }
+
+      .good {
+        border-color: rgba(63, 185, 80, 0.55);
+      }
+
+      .badge {
+        border-radius: 4px;
+        display: inline-block;
+        font-size: 0.78rem;
+        margin-bottom: 0.45rem;
+        padding: 0.1rem 0.38rem;
+      }
+
+      .badge.red {
+        background: rgba(255, 123, 114, 0.14);
+        color: var(--red);
+      }
+
+      .badge.green {
+        background: rgba(63, 185, 80, 0.14);
+        color: var(--green);
+      }
+
+      .svg-wrap {
+        background: #0a0f16;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: auto;
+        padding: 1rem;
+      }
+
+      svg {
+        max-width: 100%;
+      }
+
+      .svg-node {
+        fill: #151b23;
+        stroke: #303b49;
+        stroke-width: 1.4;
+      }
+
+      .svg-node.hot {
+        stroke: #7dd3fc;
+        stroke-width: 2.4;
+      }
+
+      .svg-text {
+        fill: #e6edf3;
+        font-family: Inter, sans-serif;
+        font-size: 13px;
+      }
+
+      .svg-small {
+        fill: #9da7b3;
+        font-family: Inter, sans-serif;
+        font-size: 11px;
+      }
+
+      .arrow {
+        stroke: #758195;
+        stroke-width: 1.5;
+        marker-end: url(#arrow);
+      }
+
+      .legend {
+        color: var(--muted);
+        font-size: 0.88rem;
+        margin-top: 0.6rem;
+      }
+
+      details {
+        background: rgba(21, 27, 35, 0.65);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0.75rem 0.9rem;
+      }
+
+      summary {
+        cursor: pointer;
+        font-weight: 650;
+      }
+
+      ul {
+        margin: 0.5rem 0 0;
+        padding-left: 1.25rem;
+      }
+
+      li {
+        margin: 0.25rem 0;
+      }
+
+      .links {
+        display: grid;
+        gap: 0.6rem;
+      }
+
+      .links a {
+        background: #101720;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 0.55rem 0.65rem;
+        text-decoration: none;
+      }
+
+      .links a:hover {
+        border-color: var(--focus);
+      }
+
+      .callout {
+        background: rgba(88, 166, 255, 0.08);
+        border: 1px solid rgba(88, 166, 255, 0.34);
+        border-radius: 8px;
+        color: var(--soft);
+        margin-top: 1rem;
+        padding: 0.85rem 1rem;
+      }
+
+      .callout strong {
+        color: var(--text);
+      }
+
+      @media (max-width: 900px) {
+        .grid.two,
+        .grid.three,
+        .sim,
+        .compare,
+        .flow-row {
+          grid-template-columns: 1fr;
+        }
+
+        .node::after {
+          bottom: -1rem;
+          content: "↓";
+          right: 1rem;
+          top: auto;
+          transform: none;
+        }
+
+        .topbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        nav {
+          justify-content: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <header>
+        <div class="topbar">
+          <div class="brand">
+            <strong>IO do-notation</strong>
+            <span>yield*, YieldWrap и зачем нужен suspend</span>
+          </div>
+          <nav aria-label="Разделы">
+            <a href="#model">Модель</a>
+            <a href="#yieldwrap">YieldWrap</a>
+            <a href="#simulator">Симулятор</a>
+            <a href="#suspend">Suspend</a>
+            <a href="#graphs">Графы</a>
+            <a href="#links">Ссылки</a>
+          </nav>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero">
+          <span class="pill">Учебный файл · без внешних библиотек · можно открыть как HTML</span>
+          <h1>Как `doIo` связывает генератор, `YieldWrap` и `runIO`</h1>
+          <p class="lead">
+            Цель этого файла: разложить по шагам, почему `yield* readLine` отдаёт наружу
+            `YieldWrap(readLine)`, как результат эффекта возвращается обратно в генератор, и зачем
+            `suspend` нужен для отложенного следующего шага.
+          </p>
+          <p class="note">
+            Это объяснение специально написано как карта понимания. Оно показывает форму движения
+            данных и типы значений, но не является отдельным готовым ответом для копирования в
+            домашку.
+          </p>
+        </section>
+
+        <section id="model">
+          <h2>1. Базовая модель: IO это объект-инструкция</h2>
+          <div class="grid two">
+            <div class="panel">
+              <h3>Построение программы</h3>
+              <p>
+                Когда код вызывает <code>writeLine("hi")</code>, консоль ещё не трогается.
+                Создаётся объект, который описывает будущий эффект.
+              </p>
+              <pre><code>writeLine("hi")
+// примерно:
+{
+  tag: "writeLine",
+  text: "hi",
+  next: pure(undefined)
+}</code></pre>
+            </div>
+            <div class="panel">
+              <h3>Исполнение программы</h3>
+              <p>
+                Эффекты исполняет только <code>runIO</code>. Он смотрит на <code>tag</code>,
+                вызывает метод из <code>world</code>, потом переходит к следующему IO.
+              </p>
+              <pre><code>case "readLine": {
+  const text = await world.readLine();
+  current = current.next(text);
+  break;
+}</code></pre>
+            </div>
+          </div>
+
+          <div class="grid three" style="margin-top: 1rem">
+            <div class="panel compact kpi">
+              <strong>IO</strong>
+              Описание действия: что потом выполнить.
+            </div>
+            <div class="panel compact kpi">
+              <strong>runIO</strong>
+              Интерпретатор: выполняет IO-объекты в цикле.
+            </div>
+            <div class="panel compact kpi">
+              <strong>world</strong>
+              Реальный внешний мир: readLine, writeLine, fetch, sleep.
+            </div>
+          </div>
+        </section>
+
+        <section id="yieldwrap">
+          <h2>2. Что меняет `yield*` и `Symbol.iterator`</h2>
+          <p>
+            В наивной версии генератор пишет <code>yield readLine</code>, и наружу выходит сам
+            <code>readLine</code>. В версии с <code>Symbol.iterator</code> пользователь пишет
+            <code>yield* readLine</code>. Тогда JavaScript вызывает
+            <code>readLine[Symbol.iterator]()</code>, а твой <code>mkIO</code> отдаёт наружу
+            обёртку <code>YieldWrap(readLine)</code>.
+          </p>
+
+          <div class="compare">
+            <div class="panel bad">
+              <span class="badge red">Наивный стиль</span>
+              <pre><code>const name = yield readLine;</code></pre>
+              <p>Наружу из генератора выходит голый IO.</p>
+              <pre><code>result.value // IO&lt;string&gt;</code></pre>
+            </div>
+            <div class="panel good">
+              <span class="badge green">Текущий стиль</span>
+              <pre><code>const name = yield* readLine;</code></pre>
+              <p>Наружу из генератора выходит обёртка.</p>
+              <pre><code>result.value       // YieldWrap&lt;IO&lt;string&gt;&gt;
+result.value.value // IO&lt;string&gt;</code></pre>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top: 1rem">
+            <h3>Почему `yield*` возвращает типизированное значение</h3>
+            <p>
+              <code>yield*</code> делегирует управление вложенному iterable. В твоём случае
+              iterable живёт прямо на IO-объекте. Внутренний генератор в <code>mkIO</code> сначала
+              отдаёт <code>YieldWrap(this)</code>, а потом возвращает то значение, которое ему
+              передадут обратно через <code>next(value)</code>.
+            </p>
+            <pre><code>Object.defineProperty(io, Symbol.iterator, {
+  enumerable: false,
+  value: function* () {
+    return (yield new YieldWrap(this)) as A;
+  },
+});</code></pre>
+          </div>
+        </section>
+
+        <section id="simulator">
+          <h2>3. Интерактивный пример: как значение возвращается в генератор</h2>
+          <p>
+            Нажимай "Следующий шаг". Симулятор показывает не настоящий стек JavaScript, а учебную
+            модель: что находится у генератора, что отдаётся в <code>runIO</code>, и какой результат
+            возвращается обратно.
+          </p>
+
+          <div class="sim">
+            <div class="panel">
+              <div class="code-title">Программа</div>
+              <pre><code>const program = doIo(function* () {
+  yield* writeLine("Name?");
+  const name = yield* readLine;
+  yield* writeLine(`Hi, ${name}`);
+});</code></pre>
+
+              <div class="controls">
+                <button id="nextStep">Следующий шаг</button>
+                <button class="secondary" id="resetStep">Сбросить</button>
+              </div>
+            </div>
+
+            <div class="panel">
+              <h3>Состояние</h3>
+              <div class="state">
+                <div class="state-line">
+                  <span>Шаг</span>
+                  <span id="stateIndex">0</span>
+                </div>
+                <div class="state-line">
+                  <span>Генератор</span>
+                  <span id="stateGen">ещё не создан</span>
+                </div>
+                <div class="state-line">
+                  <span>Yielded наружу</span>
+                  <span id="stateYield">-</span>
+                </div>
+                <div class="state-line">
+                  <span>Результат эффекта</span>
+                  <span id="stateInput">-</span>
+                </div>
+                <div class="state-line">
+                  <span>Следующий IO</span>
+                  <span id="stateIo">-</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top: 1rem">
+            <h3>Лента событий</h3>
+            <div class="timeline" id="timeline"></div>
+          </div>
+        </section>
+
+        <section id="suspend">
+          <h2>4. Зачем здесь `suspend`</h2>
+          <p>
+            <code>suspend</code> нужен не для того, чтобы выполнить эффект. Он нужен, чтобы
+            отложить построение следующего куска IO до момента, когда <code>runIO</code> сам до
+            него дойдёт.
+          </p>
+          <div class="callout">
+            <strong>Коротко:</strong> <code>suspend(thunk)</code> это IO-узел с отложенной
+            функцией. Когда программа только строится, <code>thunk</code> не вызывается. Он
+            вызывается только в ветке <code>case "suspend"</code> внутри <code>runIO</code>.
+          </div>
+
+          <div class="compare">
+            <div class="panel bad">
+              <span class="badge red">Опасная ментальная модель</span>
+              <p>
+                "Я сейчас внутри <code>doIo</code> пройду генератор до конца обычным циклом".
+              </p>
+              <pre><code>while (!done) {
+  const result = gen.next(???);
+}</code></pre>
+              <p>
+                Проблема: для следующего <code>gen.next(value)</code> нужно значение прошлого
+                эффекта. Например, строка из <code>readLine</code> ещё не существует.
+              </p>
+            </div>
+            <div class="panel good">
+              <span class="badge green">Рабочая ментальная модель</span>
+              <p>
+                "Я делаю один шаг генератора, возвращаю IO для <code>runIO</code>, а следующий
+                шаг откладываю".
+              </p>
+              <pre><code>yielded IO
+  затем bind получает result
+  затем suspend откладывает следующий gen.next(result)</code></pre>
+              <p>
+                В итоге <code>runIO</code> остаётся главным циклом, который разворачивает программу.
+              </p>
+            </div>
+          </div>
+
+          <div class="grid two" style="margin-top: 1rem">
+            <div class="panel">
+              <h3>Две разные причины для suspend</h3>
+              <p>
+                В твоём варианте <code>suspend</code> полезен в двух местах, и их не стоит
+                смешивать.
+              </p>
+              <ul>
+                <li>
+                  Внешний <code>suspend</code> вокруг всей do-программы даёт свежий генератор на
+                  каждый запуск.
+                </li>
+                <li>
+                  Внутренний <code>suspend</code> после каждого эффекта откладывает следующий
+                  <code>gen.next(result)</code>.
+                </li>
+              </ul>
+            </div>
+            <div class="panel">
+              <h3>Почему не продолжить сразу</h3>
+              <p>
+                Callback у <code>bind</code> должен вернуть следующий <code>IO</code>. Если он
+                сразу вызывает следующий шаг генератора, вся цепочка начинает раскрываться прямо в
+                момент построения продолжения. Если он возвращает <code>suspend</code>, следующий
+                шаг остаётся обычной IO-инструкцией, которую позже обработает цикл
+                <code>runIO</code>.
+              </p>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top: 1rem">
+            <h3>Короткая формула</h3>
+            <pre><code>без suspend:
+  следующий шаг может строиться прямо сейчас
+
+с suspend:
+  следующий шаг будет построен, когда runIO дойдёт до suspend</code></pre>
+            <p>
+              Поэтому <code>suspend</code> помогает не строить глубокую вложенную лестницу заранее.
+              Он превращает "сразу продолжить" в "вернуть инструкцию: продолжить потом".
+            </p>
+            <pre><code>runIO видит suspend:
+  current = current.thunk()
+
+и только здесь происходит следующий шаг генератора</code></pre>
+          </div>
+
+          <div class="panel" style="margin-top: 1rem">
+            <h3>Интерактивная проверка идеи</h3>
+            <p>Выбери, что происходит после выполнения текущего yielded IO.</p>
+            <div class="controls">
+              <button class="secondary quiz" data-answer="now">Сразу вызвать следующий шаг</button>
+              <button class="secondary quiz" data-answer="later">Вернуть suspend со следующим шагом</button>
+            </div>
+            <p id="quizResult" class="note" aria-live="polite">Ответ появится здесь.</p>
+          </div>
+        </section>
+
+        <section id="graphs">
+          <h2>5. Граф выполнения</h2>
+          <p>
+            Граф ниже показывает один цикл: генератор отдаёт wrapped IO, <code>runIO</code>
+            исполняет его, результат возвращается в генератор, а <code>suspend</code> откладывает
+            следующий шаг.
+          </p>
+
+          <div class="svg-wrap">
+            <svg viewBox="0 0 920 390" role="img" aria-label="Граф doIo и suspend">
+              <defs>
+                <marker id="arrow" markerHeight="10" markerWidth="10" orient="auto" refX="9" refY="3">
+                  <path d="M0,0 L0,6 L9,3 z" fill="#758195"></path>
+                </marker>
+              </defs>
+
+              <rect class="svg-node hot" x="40" y="40" width="170" height="72" rx="8"></rect>
+              <text class="svg-text" x="62" y="72">generator.next(input)</text>
+              <text class="svg-small" x="62" y="92">двигаем генератор</text>
+
+              <line class="arrow" x1="210" y1="76" x2="282" y2="76"></line>
+
+              <rect class="svg-node" x="290" y="40" width="170" height="72" rx="8"></rect>
+              <text class="svg-text" x="318" y="72">IteratorResult</text>
+              <text class="svg-small" x="318" y="92">done или yield</text>
+
+              <line class="arrow" x1="460" y1="76" x2="532" y2="76"></line>
+
+              <rect class="svg-node" x="540" y="40" width="170" height="72" rx="8"></rect>
+              <text class="svg-text" x="568" y="72">YieldWrap&lt;IO&gt;</text>
+              <text class="svg-small" x="568" y="92">если done: false</text>
+
+              <line class="arrow" x1="625" y1="112" x2="625" y2="170"></line>
+
+              <rect class="svg-node" x="540" y="178" width="170" height="72" rx="8"></rect>
+              <text class="svg-text" x="576" y="210">bind(IO, k)</text>
+              <text class="svg-small" x="576" y="230">исполнить IO</text>
+
+              <line class="arrow" x1="540" y1="214" x2="468" y2="214"></line>
+
+              <rect class="svg-node" x="290" y="178" width="170" height="72" rx="8"></rect>
+              <text class="svg-text" x="330" y="210">runIO/world</text>
+              <text class="svg-small" x="330" y="230">получить результат</text>
+
+              <line class="arrow" x1="290" y1="214" x2="218" y2="214"></line>
+
+              <rect class="svg-node hot" x="40" y="178" width="170" height="72" rx="8"></rect>
+              <text class="svg-text" x="72" y="210">suspend(...)</text>
+              <text class="svg-small" x="72" y="230">отложить step(result)</text>
+
+              <path class="arrow" d="M125 178 C125 145 125 145 125 120"></path>
+
+              <rect class="svg-node" x="290" y="296" width="170" height="58" rx="8"></rect>
+              <text class="svg-text" x="335" y="325">pure(value)</text>
+              <text class="svg-small" x="335" y="344">если done: true</text>
+
+              <path class="arrow" d="M375 112 C375 185 375 230 375 288"></path>
+            </svg>
+          </div>
+
+          <p class="legend">
+            Синие узлы важны для понимания <code>suspend</code>: генератор двигается на один шаг,
+            а следующий шаг откладывается как IO-инструкция.
+          </p>
+        </section>
+
+        <section>
+          <h2>6. Частые ошибки</h2>
+          <div class="grid two">
+            <details open>
+              <summary>Ошибка 1: перепутать `yield` и `yield*`</summary>
+              <p>
+                Если <code>doIo</code> ждёт <code>YieldWrap&lt;IO&gt;</code>, тесты и программы
+                должны использовать <code>yield*</code>. Обычный <code>yield</code> отдаёт наружу
+                голый IO.
+              </p>
+            </details>
+            <details open>
+              <summary>Ошибка 2: передать следующий IO обратно в генератор</summary>
+              <p>
+                Когда <code>done: false</code>, yielded значение — это инструкция, которую ещё надо
+                выполнить. В <code>gen.next(...)</code> надо возвращать результат уже выполненного
+                эффекта, а не саму инструкцию.
+              </p>
+            </details>
+            <details>
+              <summary>Ошибка 3: пройти генератор до конца сразу</summary>
+              <p>
+                Нельзя заранее дойти до следующего <code>yield</code>, если предыдущее значение ещё
+                не получено из <code>world</code>. Например, имени пользователя ещё нет до
+                выполнения <code>readLine</code>.
+              </p>
+            </details>
+            <details>
+              <summary>Ошибка 4: создать генератор слишком рано</summary>
+              <p>
+                Генераторы одноразовые. Поэтому <code>doIo</code> принимает фабрику генератора, а
+                свежий генератор должен появляться на запуск программы, а не быть общим для всех
+                запусков.
+              </p>
+            </details>
+          </div>
+        </section>
+
+        <section id="links">
+          <h2>7. Внешние материалы</h2>
+          <p>
+            Эти ссылки полезны как справка по самим механизмам JavaScript/TypeScript, на которых
+            строится do-notation.
+          </p>
+          <div class="links">
+            <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Iterators_and_generators" target="_blank" rel="noreferrer">
+              MDN: Iterators and generators
+            </a>
+            <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/yield%2A" target="_blank" rel="noreferrer">
+              MDN: yield* operator
+            </a>
+            <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols" target="_blank" rel="noreferrer">
+              MDN: Iteration protocols
+            </a>
+            <a href="https://www.typescriptlang.org/docs/handbook/iterators-and-generators.html" target="_blank" rel="noreferrer">
+              TypeScript Handbook: Iterators and Generators
+            </a>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const steps = [
+        {
+          gen: "ещё не создан",
+          yielded: "-",
+          input: "-",
+          io: "program = suspend(...)",
+          event: "doIo возвращает IO-значение. Эффекты ещё не выполнялись.",
+        },
+        {
+          gen: "создан свежий gen",
+          yielded: "YieldWrap(writeLine(\"Name?\"))",
+          input: "undefined",
+          io: "writeLine(\"Name?\")",
+          event: "runIO дошёл до suspend, thunk создал генератор и сделал первый gen.next(undefined).",
+        },
+        {
+          gen: "остановлен после 1-го yield*",
+          yielded: "-",
+          input: "void от writeLine",
+          io: "suspend(() => step(void))",
+          event: "writeLine выполнен. bind получил результат и вернул suspend со следующим шагом.",
+        },
+        {
+          gen: "продолжен после writeLine",
+          yielded: "YieldWrap(readLine)",
+          input: "void",
+          io: "readLine",
+          event: "Следующий step передал void в gen.next. Генератор дошёл до yield* readLine.",
+        },
+        {
+          gen: "остановлен на readLine",
+          yielded: "-",
+          input: "\"Alice\"",
+          io: "suspend(() => step(\"Alice\"))",
+          event: "runIO выполнил world.readLine() и получил Alice. Это значение надо вернуть в генератор.",
+        },
+        {
+          gen: "name = \"Alice\"",
+          yielded: "YieldWrap(writeLine(\"Hi, Alice\"))",
+          input: "\"Alice\"",
+          io: "writeLine(\"Hi, Alice\")",
+          event: "gen.next(\"Alice\") делает выражение yield* readLine равным Alice.",
+        },
+        {
+          gen: "завершён",
+          yielded: "done: true",
+          input: "void от writeLine",
+          io: "pure(undefined)",
+          event: "После последнего writeLine следующий step видит done: true и завершает IO через pure.",
+        },
+      ];
+
+      let index = 0;
+
+      const stateIndex = document.getElementById("stateIndex");
+      const stateGen = document.getElementById("stateGen");
+      const stateYield = document.getElementById("stateYield");
+      const stateInput = document.getElementById("stateInput");
+      const stateIo = document.getElementById("stateIo");
+      const timeline = document.getElementById("timeline");
+
+      function render() {
+        const step = steps[index];
+        stateIndex.textContent = String(index);
+        stateGen.textContent = step.gen;
+        stateYield.textContent = step.yielded;
+        stateInput.textContent = step.input;
+        stateIo.textContent = step.io;
+
+        timeline.innerHTML = "";
+        steps.forEach((item, i) => {
+          const el = document.createElement("div");
+          el.className = "event" + (i === index ? " current" : "");
+          el.textContent = `${i}. ${item.event}`;
+          timeline.appendChild(el);
+        });
+      }
+
+      document.getElementById("nextStep").addEventListener("click", () => {
+        index = Math.min(index + 1, steps.length - 1);
+        render();
+      });
+
+      document.getElementById("resetStep").addEventListener("click", () => {
+        index = 0;
+        render();
+      });
+
+      document.querySelectorAll(".quiz").forEach((button) => {
+        button.addEventListener("click", () => {
+          const result = document.getElementById("quizResult");
+          if (button.dataset.answer === "later") {
+            result.textContent =
+              "Да. В этой модели callback после bind возвращает отложенный следующий шаг: runIO сам дойдёт до suspend и вызовет thunk.";
+          } else {
+            result.textContent =
+              "Это соблазнительная мысль, но тогда следующий шаг начинает строиться прямо сейчас. Для учебной цели с suspend важно отложить продолжение до runIO.";
+          }
+        });
+      });
+
+      render();
+    </script>
+  </body>
+</html>

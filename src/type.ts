@@ -1,3 +1,5 @@
+import { YieldWrap } from "./gen.ts";
+
 export type Pure<A> = {
   tag: "pure";
   value: A;
@@ -33,8 +35,9 @@ export type Suspend<A> = {
 };
 
 export type IO<A> = Fetch<A> | Pure<A> | Readline<A> | Sleep<A> | Suspend<A> | WriteLine<A>;
+export type IOGen<A> = Generator<YieldWrap<IO<any>>, A>;
 
-export type IOGen<A> = Generator<IO<unknown>, A, unknown>;
+// export type IOGen<A> = Generator<IO<unknown>, A, unknown>;
 
 export interface World {
   fetch: (url: string, options?: RequestInit) => Promise<string>;

@@ -7,14 +7,14 @@ import { testWorld } from "../../src/world.ts";
 
 it("prints a smoke message when doIo runs the described program correctly", async () => {
   const program = doIo(function* () {
-    yield writeLine("start");
-    const name = yield readLine;
+    yield* writeLine("start");
+    const name = yield* readLine;
 
     for (let i = 0; i < 5; i += 1) {
-      yield writeLine(`${name}:${i}`);
+      yield* writeLine(`${name}:${i}`);
     }
 
-    yield writeLine("done");
+    yield* writeLine("done");
   });
 
   const world = testWorld({ inputs: ["Alice"] });

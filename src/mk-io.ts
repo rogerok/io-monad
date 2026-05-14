@@ -1,0 +1,15 @@
+import { YieldWrap } from "./gen.ts";
+import { IO } from "./type.ts";
+
+export const mkIO = <A>(io: IO<A>): IO<A> => {
+  Object.defineProperty(io, Symbol.iterator, {
+    configurable: true,
+    enumerable: false,
+    value: function* () {
+      return (yield new YieldWrap(this)) as A;
+    },
+    writable: false,
+  });
+
+  return io;
+};

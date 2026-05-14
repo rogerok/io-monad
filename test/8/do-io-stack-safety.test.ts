@@ -7,14 +7,14 @@ import { testWorld } from "../../src/world.ts";
 
 const longDoIoProgram = (size: number) =>
   doIo(function* () {
-    yield writeLine("start");
-    const name = yield readLine;
+    yield* writeLine("start");
+    const name = yield* readLine;
 
     for (let i = 0; i < size; i += 1) {
-      yield writeLine(`${name}:${i}`);
+      yield* writeLine(`${name}:${i}`);
     }
 
-    yield writeLine("done");
+    yield* writeLine("done");
   });
 
 describe("doIo long linear programs", () => {

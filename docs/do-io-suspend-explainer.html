@@ -529,6 +529,7 @@
             <a href="#yieldwrap">YieldWrap</a>
             <a href="#simulator">Симулятор</a>
             <a href="#suspend">Suspend</a>
+            <a href="#suspend-chapter">Глава</a>
             <a href="#graphs">Графы</a>
             <a href="#links">Ссылки</a>
           </nav>
@@ -797,8 +798,188 @@ result.value.value // IO&lt;string&gt;</code></pre>
           </div>
         </section>
 
+        <section id="suspend-chapter">
+          <h2>5. Глава: suspend как отложенное продолжение</h2>
+          <p class="lead">
+            Если убрать детали типов, <code>suspend</code> отвечает на один простой вопрос:
+            "можно ли не делать следующий шаг прямо сейчас, а записать его как инструкцию для
+            интерпретатора?" В нашей IO-модели ответ: да, следующий шаг можно завернуть в
+            <code>thunk</code>.
+          </p>
+
+          <div class="grid two">
+            <div class="panel">
+              <h3>Что такое thunk</h3>
+              <p>
+                Thunk — это функция, которая держит вычисление внутри себя. Она не вычисляет
+                результат в момент создания. Она ждёт, пока кто-то её вызовет.
+              </p>
+              <pre><code>const eager = writeLine("hi");
+// IO-объект строится сейчас
+
+const lazy = () => writeLine("hi");
+// IO-объект построится только при lazy()</code></pre>
+              <p>
+                Внешне это маленькая разница. По управлению программой — огромная: теперь у нас
+                появляется ручка "когда именно раскрыть следующий шаг".
+              </p>
+            </div>
+            <div class="panel">
+              <h3>Что делает suspend</h3>
+              <p>
+                <code>suspend</code> превращает thunk в обычный IO-узел. Для
+                <code>runIO</code> это такая же инструкция, как <code>readLine</code> или
+                <code>writeLine</code>, только смысл у неё другой: "раскрой меня и получи следующий
+                IO".
+              </p>
+              <pre><code>{
+  tag: "suspend",
+  thunk: () => IO&lt;A&gt;
+}</code></pre>
+              <p>
+                Важная граница: <code>suspend</code> не выполняет внешний эффект. Он только
+                откладывает создание следующего описания программы.
+              </p>
+            </div>
+          </div>
+
+          <div class="callout">
+            <strong>Запомнить:</strong> <code>readLine</code> откладывает чтение строки, а
+            <code>suspend</code> откладывает построение следующего IO-узла. Это разные уровни
+            ленивости.
+          </div>
+
+          <div class="panel" style="margin-top: 1rem">
+            <h3>Почему это важно именно для doIo</h3>
+            <p>
+              Генератор нельзя прокрутить до конца заранее. После строки
+              <code>const name = yield* readLine</code> следующий шаг зависит от настоящего
+              результата <code>readLine</code>. До исполнения <code>world.readLine()</code> имени
+              нет.
+            </p>
+            <pre><code>const name = yield* readLine;
+yield* writeLine(`Hi, ${name}`);</code></pre>
+            <p>
+              Поэтому <code>doIo</code> должен работать порциями: получить один yielded IO, вернуть
+              его интерпретатору, дождаться результата, а следующий <code>gen.next(result)</code>
+              оформить как будущий шаг.
+            </p>
+          </div>
+
+          <div class="compare" style="margin-top: 1rem">
+            <div class="panel bad">
+              <span class="badge red">Продолжить прямо сейчас</span>
+              <pre><code>callback(result) {
+  return step(result);
+}</code></pre>
+              <p>
+                Ментально это говорит: "я уже сейчас раскрываю следующий кусок программы". На
+                коротких сценариях это может казаться нормальным, но управление снова уходит в
+                цепочку вызовов функций.
+              </p>
+            </div>
+            <div class="panel good">
+              <span class="badge green">Вернуть следующий шаг как IO</span>
+              <pre><code>callback(result) {
+  return suspend(() => step(result));
+}</code></pre>
+              <p>
+                Ментально это говорит: "следующий шаг существует, но пусть его раскроет
+                <code>runIO</code>". Так главный цикл остаётся в одном месте.
+              </p>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top: 1rem">
+            <h3>Интерактив: eager или suspended?</h3>
+            <p>
+              Нажми на строки ниже. Смотри на правый блок: он показывает, выполняется ли следующий
+              шаг сразу или превращается в инструкцию для <code>runIO</code>.
+            </p>
+            <div class="sim">
+              <div class="state">
+                <button class="secondary suspend-case" data-case="eager">
+                  callback возвращает step(result)
+                </button>
+                <button class="secondary suspend-case" data-case="lazy">
+                  callback возвращает suspend(() =&gt; step(result))
+                </button>
+                <button class="secondary suspend-case" data-case="outer">
+                  doIo возвращает suspend(() =&gt; создать generator)
+                </button>
+              </div>
+              <div class="panel compact">
+                <h3 id="suspendCaseTitle">Выбери строку слева</h3>
+                <p id="suspendCaseBody">
+                  Здесь появится объяснение: что создаётся сейчас, что откладывается, и кто потом
+                  продолжает выполнение.
+                </p>
+                <pre><code id="suspendCaseCode">-</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top: 1rem">
+            <h3>Trampoline-идея простыми словами</h3>
+            <p>
+              Trampoline — это приём: функция не вызывает следующий шаг глубже и глубже, а
+              возвращает "следующий шаг" наружу. Потом внешний цикл сам вызывает эти шаги один за
+              другим.
+            </p>
+            <div class="svg-wrap">
+              <svg viewBox="0 0 920 360" role="img" aria-label="Сравнение рекурсии и trampoline">
+                <defs>
+                  <marker id="arrow2" markerHeight="10" markerWidth="10" orient="auto" refX="9" refY="3">
+                    <path d="M0,0 L0,6 L9,3 z" fill="#758195"></path>
+                  </marker>
+                </defs>
+
+                <text class="svg-text" x="80" y="34">Глубокие вызовы</text>
+                <rect class="svg-node" x="70" y="60" width="150" height="54" rx="8"></rect>
+                <text class="svg-small" x="105" y="91">step 1</text>
+                <rect class="svg-node" x="105" y="122" width="150" height="54" rx="8"></rect>
+                <text class="svg-small" x="140" y="153">step 2</text>
+                <rect class="svg-node" x="140" y="184" width="150" height="54" rx="8"></rect>
+                <text class="svg-small" x="175" y="215">step 3</text>
+                <rect class="svg-node" x="175" y="246" width="150" height="54" rx="8"></rect>
+                <text class="svg-small" x="210" y="277">step 4</text>
+
+                <text class="svg-text" x="535" y="34">Trampoline / runIO-loop</text>
+                <rect class="svg-node hot" x="500" y="72" width="170" height="60" rx="8"></rect>
+                <text class="svg-small" x="548" y="106">while loop</text>
+                <line x1="585" y1="132" x2="585" y2="168" class="arrow" marker-end="url(#arrow2)"></line>
+                <rect class="svg-node" x="500" y="176" width="170" height="60" rx="8"></rect>
+                <text class="svg-small" x="530" y="210">current = thunk()</text>
+                <path d="M670 206 C760 206 760 100 678 100" class="arrow" marker-end="url(#arrow2)"></path>
+
+                <text class="svg-small" x="70" y="326">Стек растёт вниз: шаг вызывает шаг.</text>
+                <text class="svg-small" x="500" y="326">Стек остаётся плоским: цикл раскрывает инструкции.</text>
+              </svg>
+            </div>
+          </div>
+
+          <div class="grid two" style="margin-top: 1rem">
+            <details open>
+              <summary>Почему suspend не memoization?</summary>
+              <p>
+                Memoization означает "посчитать один раз и запомнить". Наш <code>suspend</code>
+                этого не обещает. Он просто хранит функцию. Если <code>runIO</code> раскроет этот
+                узел снова, thunk может вызваться снова.
+              </p>
+            </details>
+            <details open>
+              <summary>Почему suspend не async?</summary>
+              <p>
+                Асинхронность живёт в <code>world.readLine()</code>, <code>world.fetch()</code> и
+                других эффектах. <code>suspend</code> сам по себе не делает Promise. Он управляет
+                порядком построения IO-описания.
+              </p>
+            </details>
+          </div>
+        </section>
+
         <section id="graphs">
-          <h2>5. Граф выполнения</h2>
+          <h2>6. Граф выполнения</h2>
           <p>
             Граф ниже показывает один цикл: генератор отдаёт wrapped IO, <code>runIO</code>
             исполняет его, результат возвращается в генератор, а <code>suspend</code> откладывает
@@ -864,7 +1045,7 @@ result.value.value // IO&lt;string&gt;</code></pre>
         </section>
 
         <section>
-          <h2>6. Частые ошибки</h2>
+          <h2>7. Частые ошибки</h2>
           <div class="grid two">
             <details open>
               <summary>Ошибка 1: перепутать `yield` и `yield*`</summary>
@@ -902,7 +1083,7 @@ result.value.value // IO&lt;string&gt;</code></pre>
         </section>
 
         <section id="links">
-          <h2>7. Внешние материалы</h2>
+          <h2>8. Внешние материалы</h2>
           <p>
             Эти ссылки полезны как справка по самим механизмам JavaScript/TypeScript, на которых
             строится do-notation.
@@ -919,6 +1100,18 @@ result.value.value // IO&lt;string&gt;</code></pre>
             </a>
             <a href="https://www.typescriptlang.org/docs/handbook/iterators-and-generators.html" target="_blank" rel="noreferrer">
               TypeScript Handbook: Iterators and Generators
+            </a>
+            <a href="https://effect.website/docs/getting-started/creating-effects/#suspended-effects" target="_blank" rel="noreferrer">
+              Effect: Suspended Effects
+            </a>
+            <a href="https://redux.js.org/usage/writing-logic-thunks" target="_blank" rel="noreferrer">
+              Redux: What is a thunk?
+            </a>
+            <a href="https://typelevel.org/cats/datatypes/eval.html" target="_blank" rel="noreferrer">
+              Cats Eval: laziness, memoization, stack safety
+            </a>
+            <a href="https://softwarepatternslexicon.com/functional/recursion-and-iteration-patterns/recursion/trampolining/" target="_blank" rel="noreferrer">
+              Trampolining: converting recursion into an iterative process
             </a>
           </div>
         </section>
@@ -1024,6 +1217,36 @@ result.value.value // IO&lt;string&gt;</code></pre>
             result.textContent =
               "Это соблазнительная мысль, но тогда следующий шаг начинает строиться прямо сейчас. Для учебной цели с suspend важно отложить продолжение до runIO.";
           }
+        });
+      });
+
+      const suspendCases = {
+        eager: {
+          title: "Сразу продолжаем",
+          body:
+            "Следующий шаг генератора раскрывается прямо в callback. Это проще увидеть, но управление снова начинает идти через вложенные вызовы функций.",
+          code: "callback(result) {\n  return step(result);\n}",
+        },
+        lazy: {
+          title: "Откладываем следующий шаг",
+          body:
+            "Callback возвращает обычный IO-узел suspend. runIO позже увидит этот узел, вызовет thunk и только тогда сделает следующий шаг генератора.",
+          code: "callback(result) {\n  return suspend(() => step(result));\n}",
+        },
+        outer: {
+          title: "Свежий генератор на запуск",
+          body:
+            "Внешний suspend нужен для другой причины: генератор одноразовый. Поэтому новый gen должен создаваться тогда, когда runIO запускает программу.",
+          code: "doIo(genFn) возвращает\nsuspend(() => {\n  const gen = genFn();\n  // дальше первый шаг\n});",
+        },
+      };
+
+      document.querySelectorAll(".suspend-case").forEach((button) => {
+        button.addEventListener("click", () => {
+          const data = suspendCases[button.dataset.case];
+          document.getElementById("suspendCaseTitle").textContent = data.title;
+          document.getElementById("suspendCaseBody").textContent = data.body;
+          document.getElementById("suspendCaseCode").textContent = data.code;
         });
       });
 

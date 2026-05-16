@@ -1,3 +1,4 @@
+import { unit } from "./helpers.ts";
 import { mkIO } from "./mk-io.ts";
 import { IO } from "./types.ts";
 
@@ -14,7 +15,7 @@ export const readLine: IO<string> = mkIO({
 
 export const writeLine = (text: string): IO<void> =>
   mkIO({
-    next: pure(undefined),
+    next: unit,
     tag: "writeLine",
     text,
   });
@@ -30,7 +31,7 @@ export const fetchUrl = (url: string, options?: RequestInit): IO<string> =>
 export const sleep = (ms: number): IO<void> =>
   mkIO({
     ms,
-    next: pure(undefined),
+    next: unit,
     tag: "sleep",
   });
 

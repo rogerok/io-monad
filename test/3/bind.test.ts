@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { andThen, bind, map } from "../../src/combinators.ts";
 import { pure, readLine, writeLine } from "../../src/ constructors.ts";
-import { andThen, bind, map } from "../../src/index.ts";
 // Minimal interpreter — independent of the student's runIO.
 // Lets us test-vasya bind/map/addThen behaviour before Part 5.
 function runSync<A>(io: unknown, inputs: string[]): { output: string[]; value: A } {

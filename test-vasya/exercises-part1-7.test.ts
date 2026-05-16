@@ -7,10 +7,11 @@
 
 import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { andThen, bind, forEach, map, sequence } from "../src";
+import { andThen, bind, map } from "../src/combinators.ts";
 import { fetchUrl, pure, readLine, writeLine } from "../src/ constructors.ts";
 import { runIO } from "../src/run-io.ts";
-import { IO } from "../src/type.ts";
+import { forEach, sequence } from "../src/traversable.ts";
+import { IO } from "../src/types.ts";
 import { loggingWorld, testWorld } from "../src/world.ts";
 
 describe("E1 -- DSL и типы", () => {

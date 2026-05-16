@@ -10,7 +10,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import { fetchUrl, readLine, writeLine } from "../src/ constructors.ts";
 import { doIo } from "../src/do-io.ts";
 import { runIO } from "../src/run-io.ts";
-import { IO } from "../src/type.ts";
+import { IO } from "../src/types.ts";
 import { testWorld } from "../src/world.ts";
 
 const expectedOutput = [

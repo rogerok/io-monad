@@ -1,10 +1,10 @@
 import { stdin as input, stdout as output } from "node:process";
 import readline from "node:readline/promises";
 
+import { bind } from "./combinators.ts";
 import { fetchUrl, readLine, writeLine } from "./ constructors.ts";
-import { bind } from "./index.ts";
 import { runIO } from "./run-io.ts";
-import { IO } from "./type.ts";
+import { IO } from "./types.ts";
 import { sleep } from "./utils.ts";
 
 const myProgram: IO<void> = bind(writeLine("What is your name?"), () =>

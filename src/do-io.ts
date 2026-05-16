@@ -1,6 +1,6 @@
+import { bind } from "./combinators.ts";
 import { pure, suspend } from "./ constructors.ts";
-import { bind } from "./index.ts";
-import { IO, IOGen } from "./type.ts";
+import { IO, IOGen } from "./types.ts";
 
 export const doIo = <A>(genFn: () => IOGen<A>): IO<A> =>
   suspend(() => {

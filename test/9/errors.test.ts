@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { bind } from "../../src/combinators.ts";
 import { pure, readLine, writeLine } from "../../src/ constructors.ts";
-import { attempt, bind, fail, mapError, orElse, testWorld } from "../../src/index.ts";
+import { attempt, fail, mapError, orElse, testWorld } from "../../src/index.ts";
 import { runIO } from "../../src/run-io.ts";
 
 describe.skip("E9.1 — IO<A, E> type backwards compatibility", () => {

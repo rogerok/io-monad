@@ -1,6 +1,5 @@
- 
 import { YieldWrap } from "./gen.ts";
-import { IO, RawIO } from "./type.ts";
+import { IO, RawIO } from "./types.ts";
 
 export const mkIO = <A>(io: RawIO<A>): IO<A> => {
   Object.defineProperty(io, Symbol.iterator, {

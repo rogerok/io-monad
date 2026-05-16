@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { pure, writeLine } from "../../src/ constructors.ts";
-import { fetchUrl } from "../../src/ constructors.ts";
-import { bind } from "../../src/index.ts";
+import { bind } from "../../src/combinators.ts";
+import { fetchUrl, pure, writeLine } from "../../src/ constructors.ts";
 import { runIO } from "../../src/run-io.ts";
 import { testWorld } from "../../src/world.ts";
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { bind } from "../../src/combinators.ts";
 import { pure, readLine, writeLine } from "../../src/ constructors.ts";
-import { bind } from "../../src/index.ts";
 import { runIO } from "../../src/run-io.ts";
 
 // Inline world — not the student's testWorld, to keep Part 5 test self-contained.

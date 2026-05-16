@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { greeting } from "../../src/mock.ts";
-import { IO } from "../../src/type.ts";
+import { IO } from "../../src/types.ts";
 
 describe("E1.2 — greeting tree", () => {
   it("is a writeLine at the root", () => {

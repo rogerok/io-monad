@@ -1,6 +1,6 @@
 import { createInterface } from "node:readline";
 
-import { World } from "./type.ts";
+import { World } from "./types.ts";
 import { sleep } from "./utils.ts";
 
 type Fetches = {

@@ -1,5 +1,5 @@
 import { mkIO } from "./mk-io.ts";
-import { IO } from "./type.ts";
+import { IO } from "./types.ts";
 
 export const pure = <A>(value: A): IO<A> =>
   mkIO({

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { pure } from "../../src/ constructors.ts";
-import { sequence } from "../../src/index.ts";
 import { myProgram } from "../../src/program.ts";
+import { sequence } from "../../src/traversable.ts";
 
 // Inline interpreter — identical approach as test/3, before runIO is ready.
 function runSync<A>(io: unknown, inputs: string[]): { output: string[]; value: A } {

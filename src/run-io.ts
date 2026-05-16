@@ -1,4 +1,4 @@
-import { IO, World } from "./type.ts";
+import { IO, World } from "./types.ts";
 import { exhaustive } from "./utils.ts";
 
 export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {

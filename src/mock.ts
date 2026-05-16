@@ -1,4 +1,4 @@
-import { IO } from "./type.ts";
+import { IO } from "./types.ts";
 
 export const greeting: IO<void> = {
   next: {

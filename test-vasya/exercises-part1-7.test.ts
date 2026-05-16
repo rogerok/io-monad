@@ -7,7 +7,7 @@
 
 import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { andThen, bind, map, sequence } from "../src";
+import { andThen, bind, forEach, map, sequence } from "../src";
 import { fetchUrl, pure, readLine, writeLine } from "../src/ constructors.ts";
 import { runIO } from "../src/run-io.ts";
 import { IO } from "../src/type.ts";

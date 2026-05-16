@@ -1,4 +1,5 @@
 import { pure } from "./ constructors.ts";
+import { mkIO } from "./mk-io.ts";
 import { IO } from "./type.ts";
 import { exhaustive } from "./utils.ts";
 
@@ -8,38 +9,38 @@ export const bind = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => {
       return f(io.value);
 
     case "writeLine":
-      return {
+      return mkIO({
         next: bind(io.next, f),
         tag: io.tag,
         text: io.text,
-      };
+      });
 
     case "readLine":
-      return {
+      return mkIO({
         next: (a) => bind(io.next(a), f),
         tag: io.tag,
-      };
+      });
 
     case "fetch":
-      return {
+      return mkIO({
         next: (body) => bind(io.next(body), f),
         options: io.options,
         tag: io.tag,
         url: io.url,
-      };
+      });
 
     case "sleep":
-      return {
+      return mkIO({
         ms: io.ms,
         next: bind(io.next, f),
         tag: io.tag,
-      };
+      });
 
     case "suspend":
-      return {
+      return mkIO({
         tag: io.tag,
         thunk: () => bind(io.thunk(), f),
-      };
+      });
 
     default:
       return exhaustive(io);
@@ -54,3 +55,6 @@ export const sequence = <A>(arr: IO<A>[]): IO<Array<A>> =>
     (acc, item) => bind(acc, (pureArr) => bind(item, (pureItem) => pure([...pureArr, pureItem]))),
     pure([]),
   );
+
+export const forEach = <A>(arr: IO<A>[]): IO<void> =>
+  arr.reduce<IO<void>>((acc, item) => map(andThen(acc, item), () => undefined), pure(undefined));

@@ -1,10 +1,5 @@
 import { YieldWrap } from "./gen.ts";
 
-export type Pure<A> = {
-  tag: "pure";
-  value: A;
-};
-
 export type Readline<A> = {
   tag: "readLine";
   next: (a: string) => IO<A>;
@@ -34,8 +29,17 @@ export type Suspend<A> = {
   thunk: () => IO<A>;
 };
 
-export type IO<A> = Fetch<A> | Pure<A> | Readline<A> | Sleep<A> | Suspend<A> | WriteLine<A>;
+export type RawIO<A> = Fetch<A> | Pure<A> | Readline<A> | Sleep<A> | Suspend<A> | WriteLine<A>;
 export type IOGen<A> = Generator<YieldWrap<IO<any>>, A>;
+
+export type IO<A> = {
+  [Symbol.iterator](): IOGen<A>;
+} & RawIO<A>;
+
+export type Pure<A> = {
+  tag: "pure";
+  value: A;
+};
 
 // export type IOGen<A> = Generator<IO<unknown>, A, unknown>;
 

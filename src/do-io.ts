@@ -4,6 +4,7 @@ import { IO, IOGen } from "./type.ts";
 
 export const doIo = <A>(genFn: () => IOGen<A>): IO<A> =>
   suspend(() => {
+    /*всегда новый генератор*/
     const gen = genFn();
 
     const walk = (v: unknown): IO<A> => {
@@ -13,6 +14,7 @@ export const doIo = <A>(genFn: () => IOGen<A>): IO<A> =>
         return pure(result.value);
       }
 
+      /* Избегаем вложенную рекурсию с помощью suspend*/
       return bind(result.value.value, (v) => suspend(() => walk(v)));
     };
 

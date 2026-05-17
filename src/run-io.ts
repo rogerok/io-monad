@@ -1,8 +1,9 @@
-import { IO, IORef, World } from "./types.ts";
+import { IO, IORef } from "./types.ts";
 import { exhaustive } from "./utils.ts";
+import { World } from "./world.ts";
 
 export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {
-  let current: IO<any> = io;
+  let current: IO<any, any> = io;
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   while (true) {
@@ -56,6 +57,10 @@ export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {
         current.ref.current = current.value;
         current = current.next;
         break;
+      }
+
+      case "fail": {
+        throw current.error;
       }
 
       default:

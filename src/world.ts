@@ -1,14 +1,17 @@
 import { createInterface } from "node:readline";
 
-import { modifyRef } from "./combinators.ts";
-import { newRef, readRef } from "./ constructors.ts";
-import { doIO } from "./do-io.ts";
-import { World } from "./types.ts";
 import { sleep } from "./utils.ts";
 
 type Fetches = {
   url: string;
 };
+
+export interface World {
+  fetch: (url: string, options?: RequestInit) => Promise<string>;
+  readLine: () => Promise<string>;
+  sleep: (ms: number) => Promise<void>;
+  writeLine: (s: string) => Promise<void>;
+}
 
 export type TestWorld = {
   fetches: Fetches[];
@@ -126,11 +129,4 @@ export const loggingWorld = (inner: World, logConfig: LoggingWorldConfig): World
     logConfig.log("writeLine " + s);
     await inner.writeLine(s);
   },
-});
-
-const counter = doIO(function* () {
-  const ref = yield* newRef(0);
-  yield* modifyRef(ref, (n) => n + 1);
-  yield* modifyRef(ref, (n) => n + 1);
-  return yield* readRef(ref);
 });

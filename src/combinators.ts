@@ -3,7 +3,7 @@ import { mkIO } from "./mk-io.ts";
 import { IO, IORef } from "./types.ts";
 import { exhaustive } from "./utils.ts";
 
-export const bind = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => {
+export const bind = <A, B, E1, E2>(io: IO<A, E1>, f: (a: A) => IO<B, E2>): IO<B, E1 | E2> => {
   switch (io.tag) {
     case "pure":
       return f(io.value);
@@ -64,13 +64,18 @@ export const bind = <A, B>(io: IO<A>, f: (a: A) => IO<B>): IO<B> => {
         value: io.value,
       });
 
+    case "fail":
+      return mkIO({
+        error: io.error,
+        tag: io.tag,
+      });
+
     default:
       return exhaustive(io);
   }
 };
 
 export const map = <A, B>(io: IO<A>, f: (a: A) => B): IO<B> => bind(io, (a) => pure(f(a)));
-
 export const andThen = <A, B>(first: IO<A>, second: IO<B>): IO<B> => bind(first, () => second);
 
 export const modifyRef = <A>(ref: IORef<A>, f: (v: A) => A): IO<void> =>

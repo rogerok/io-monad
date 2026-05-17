@@ -1,7 +1,7 @@
 import { YieldWrap } from "./gen.ts";
 import { IO, RawIO } from "./types.ts";
 
-export const mkIO = <A>(io: RawIO<A>): IO<A> => {
+export const mkIO = <A, E>(io: RawIO<A, E>): IO<A, E> => {
   Object.defineProperty(io, Symbol.iterator, {
     configurable: true,
     enumerable: false,
@@ -11,5 +11,5 @@ export const mkIO = <A>(io: RawIO<A>): IO<A> => {
     writable: false,
   });
 
-  return io as IO<A>;
+  return io as IO<A, E>;
 };

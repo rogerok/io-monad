@@ -2,7 +2,7 @@ import { bind } from "./combinators.ts";
 import { pure, suspend } from "./ constructors.ts";
 import { IO, IOGen } from "./types.ts";
 
-export const doIo = <A>(genFn: () => IOGen<A>): IO<A> =>
+export const doIO = <A>(genFn: () => IOGen<A>): IO<A> =>
   suspend(() => {
     /*всегда новый генератор*/
     const gen = genFn();

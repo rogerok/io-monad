@@ -1,4 +1,4 @@
-import { IO, World } from "./types.ts";
+import { IO, IORef, World } from "./types.ts";
 import { exhaustive } from "./utils.ts";
 
 export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {
@@ -38,6 +38,23 @@ export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {
 
       case "suspend": {
         current = current.thunk();
+        break;
+      }
+
+      case "newRef": {
+        const ref: IORef<unknown> = { current: current.initial };
+        current = current.next(ref);
+        break;
+      }
+
+      case "readRef": {
+        current = current.next(current.ref.current);
+        break;
+      }
+
+      case "writeRef": {
+        current.ref.current = current.value;
+        current = current.next;
         break;
       }
 

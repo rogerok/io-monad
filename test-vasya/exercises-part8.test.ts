@@ -8,7 +8,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { fetchUrl, readLine, writeLine } from "../src/ constructors.ts";
-import { doIo } from "../src/do-io.ts";
+import { doIO } from "../src/do-io.ts";
 import { runIO } from "../src/run-io.ts";
 import { IO } from "../src/types.ts";
 import { testWorld } from "../src/world.ts";
@@ -24,7 +24,7 @@ const inputs = ["Alice", "30"] as const;
 const fetchMocks = { "https://api/uuid": "token-123" } as const;
 
 describe("E8.3 -- Symbol.iterator, yield* io напрямую", () => {
-  const program: IO<void> = doIo(function* () {
+  const program: IO<void> = doIO(function* () {
     yield* writeLine("What is your name?");
     const name = yield* readLine;
     expectTypeOf(name).toEqualTypeOf<string>();
@@ -82,7 +82,7 @@ describe("E8.5 -- одна программа, переиспользуемая 
   };
 
   it("symbol-iterator doIO: один и тот же myProgram прогоняется дважды", async () => {
-    const program: IO<void> = doIo(function* () {
+    const program: IO<void> = doIO(function* () {
       yield* writeLine("What is your name?");
       const name = yield* readLine;
       yield* writeLine(`Hello, ${name}! How old are you?`);
@@ -101,7 +101,7 @@ describe("E8.4 -- три encoding эквивалентны", () => {
     const w2 = testWorld({ fetchMocks, inputs: [...inputs] });
     const w3 = testWorld({ fetchMocks, inputs: [...inputs] });
 
-    const symbol: IO<void> = doIo(function* () {
+    const symbol: IO<void> = doIO(function* () {
       yield* writeLine("hi");
       const x = yield* readLine;
       yield* writeLine(`echo ${x}`);

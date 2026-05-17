@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { readLine, writeLine } from "../../src/ constructors.ts";
-import { doIo } from "../../src/do-io.ts";
+import { doIO } from "../../src/do-io.ts";
 import { runIO } from "../../src/run-io.ts";
 import { testWorld } from "../../src/world.ts";
 
 const longDoIoProgram = (size: number) =>
-  doIo(function* () {
+  doIO(function* () {
     yield* writeLine("start");
     const name = yield* readLine;
 

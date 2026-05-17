@@ -1,6 +1,5 @@
-import { unit } from "./helpers.ts";
 import { mkIO } from "./mk-io.ts";
-import { IO } from "./types.ts";
+import { IO, IORef } from "./types.ts";
 
 export const pure = <A>(value: A): IO<A> =>
   mkIO({
@@ -15,7 +14,7 @@ export const readLine: IO<string> = mkIO({
 
 export const writeLine = (text: string): IO<void> =>
   mkIO({
-    next: unit,
+    next: pure(undefined),
     tag: "writeLine",
     text,
   });
@@ -31,7 +30,7 @@ export const fetchUrl = (url: string, options?: RequestInit): IO<string> =>
 export const sleep = (ms: number): IO<void> =>
   mkIO({
     ms,
-    next: unit,
+    next: pure(undefined),
     tag: "sleep",
   });
 
@@ -39,4 +38,26 @@ export const suspend = <A>(thunk: () => IO<A>): IO<A> =>
   mkIO({
     tag: "suspend",
     thunk,
+  });
+
+export const newRef = <A>(initial: A): IO<IORef<A>> =>
+  mkIO({
+    initial,
+    next: (ref) => pure(ref as IORef<A>),
+    tag: "newRef",
+  });
+
+export const readRef = <A>(ref: IORef<A>): IO<A> =>
+  mkIO({
+    next: (v) => pure(v as A),
+    ref: ref,
+    tag: "readRef",
+  });
+
+export const writeRef = <A>(ref: IORef<A>, value: A): IO<void> =>
+  mkIO({
+    next: pure(undefined),
+    ref: ref,
+    tag: "writeRef",
+    value,
   });

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { fetchUrl, readLine, writeLine } from "../src/ constructors.ts";
-import { doIo } from "../src/do-io.ts";
+import { doIO } from "../src/do-io.ts";
 import { runIO } from "../src/run-io.ts";
 import { testWorld } from "../src/world.ts";
 
 const buildProgram = (count: number) =>
-  doIo(function* () {
+  doIO(function* () {
     yield* writeLine("What is your name?");
     const name = yield* readLine;
     yield* writeLine(`Hello, ${name}! How old are you?`);

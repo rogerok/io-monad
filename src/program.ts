@@ -1,25 +1,30 @@
 import { stdin as input, stdout as output } from "node:process";
 import readline from "node:readline/promises";
 
-import { bind } from "./combinators.ts";
-import { fetchUrl, readLine, writeLine } from "./ constructors.ts";
+import { modifyRef } from "./combinators.ts";
+import { fetchUrl, newRef, readLine, readRef, writeLine } from "./ constructors.ts";
+import { doIO } from "./do-io.ts";
 import { runIO } from "./run-io.ts";
-import { IO } from "./types.ts";
 import { sleep } from "./utils.ts";
 
-const myProgram: IO<void> = bind(writeLine("What is your name?"), () =>
-  bind(readLine, (name) =>
-    bind(writeLine(`Hello, ${name}! How old are you?`), () =>
-      bind(readLine, (age) =>
-        bind(writeLine("Loading greeting of the day..."), () =>
-          bind(fetchUrl("https://httpbin.org/uuid"), (body) =>
-            writeLine(`Wow, ${name}, ${age}! Today's lucky token: ${body}`),
-          ),
-        ),
-      ),
-    ),
-  ),
-);
+const myProgram = doIO(function* () {
+  const stepCount = yield* newRef(0);
+
+  yield* writeLine("What is your name?");
+  yield* modifyRef(stepCount, (n) => n + 1);
+  const name = yield* readLine;
+
+  yield* writeLine(`Hello, ${name}! How old are you?`);
+  yield* modifyRef(stepCount, (n) => n + 1);
+  const age = yield* readLine;
+
+  yield* writeLine("Loading greeting of the day...");
+  yield* modifyRef(stepCount, (n) => n + 1);
+  const body = yield* fetchUrl("https://httpbin.org/uuid");
+
+  const total = yield* readRef(stepCount);
+  yield* writeLine(`Wow, ${name}, ${age}! Token: ${body}. Steps: ${total}`);
+});
 
 void (async () => {
   const rl = readline.createInterface({ input, output });

@@ -34,7 +34,7 @@ export type IORef<A> = { current: A };
 export type IONewRef<A> = {
   initial: unknown;
   tag: "newRef";
-  next: (ref: IORef<A>) => IO<A>;
+  next: (ref: IORef<unknown>) => IO<A>;
 };
 
 export type IOReadRef<A> = {

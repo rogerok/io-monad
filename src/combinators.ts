@@ -1,6 +1,6 @@
-import { pure, readRef, writeRef } from "./ constructors.ts";
+import { fail, pure, readRef, writeRef } from "./ constructors.ts";
 import { mkIO } from "./mk-io.ts";
-import { IO, IORef } from "./types.ts";
+import { IO, IORef, Result } from "./types.ts";
 import { exhaustive } from "./utils.ts";
 
 export const bind = <A, B, E1, E2>(io: IO<A, E1>, f: (a: A) => IO<B, E2>): IO<B, E1 | E2> => {
@@ -78,5 +78,86 @@ export const bind = <A, B, E1, E2>(io: IO<A, E1>, f: (a: A) => IO<B, E2>): IO<B,
 export const map = <A, B>(io: IO<A>, f: (a: A) => B): IO<B> => bind(io, (a) => pure(f(a)));
 export const andThen = <A, B>(first: IO<A>, second: IO<B>): IO<B> => bind(first, () => second);
 
+export const orElse = <A, E1, E2>(io: IO<A, E1>, fallback: (e: E1) => IO<A, E2>): IO<A, E2> =>
+  bind(attempt(io), (r) => (r.ok ? pure(r.value) : fallback(r.error)));
+export const mapError = <A, E1, E2>(io: IO<A, E1>, f: (e: E1) => E2): IO<A, E2> =>
+  orElse(io, (e) => fail(f(e)));
+
 export const modifyRef = <A>(ref: IORef<A>, f: (v: A) => A): IO<void> =>
   bind(readRef(ref), (a) => writeRef(ref, f(a)));
+
+export const attempt = <A, E>(io: IO<A, E>): IO<Result<E, A>> => {
+  switch (io.tag) {
+    case "fail":
+      return mkIO({
+        tag: "pure",
+        value: { error: io.error, ok: false },
+      });
+    case "pure":
+      return mkIO({
+        tag: "pure",
+        value: { ok: true, value: io.value },
+      });
+
+    case "writeLine":
+      return mkIO({
+        next: attempt(io.next),
+        tag: io.tag,
+        text: io.text,
+      });
+
+    case "readLine": {
+      return mkIO({
+        next: (v) => attempt(io.next(v)),
+        tag: io.tag,
+      });
+    }
+
+    case "suspend": {
+      return mkIO({
+        tag: io.tag,
+        thunk: () => attempt(io.thunk()),
+      });
+    }
+
+    case "fetch":
+      return mkIO({
+        next: (v) => attempt(io.next(v)),
+        options: io.options,
+        tag: io.tag,
+        url: io.url,
+      });
+
+    case "sleep":
+      return mkIO({
+        ms: io.ms,
+        next: attempt(io.next),
+        tag: io.tag,
+      });
+
+    case "newRef":
+      return mkIO({
+        initial: io.initial,
+        next: (ref) => attempt(io.next(ref)),
+        tag: io.tag,
+      });
+
+    case "writeRef":
+      return mkIO({
+        next: attempt(io.next),
+        ref: io.ref,
+        tag: io.tag,
+        value: io.value,
+      });
+
+    case "readRef":
+      return mkIO({
+        next: (v) => attempt(io.next(v)),
+        ref: io.ref,
+        tag: io.tag,
+      });
+
+    default:
+      return exhaustive(io);
+  }
+};

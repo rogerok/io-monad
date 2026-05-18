@@ -79,6 +79,6 @@ export type IO<A, E = never> = {
 } & RawIO<A, E>;
 
 export type ResultOk<A> = { ok: true; value: A };
-export type ResultError<E> = { error: E; ok: false; };
+export type ResultError<E> = { error: E; ok: false };
 
-export type Result<A, E> = ResultError<E> | ResultOk<A>;
+export type Result<E, A> = ResultError<E> | ResultOk<A>;

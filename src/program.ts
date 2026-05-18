@@ -1,9 +1,10 @@
 import { stdin as input, stdout as output } from "node:process";
 import readline from "node:readline/promises";
 
-import { modifyRef } from "./combinators.ts";
-import { fetchUrl, newRef, readLine, readRef, writeLine } from "./ constructors.ts";
+import { modifyRef, orElse } from "./combinators.ts";
+import { fetchUrl, newRef, pure, readLine, readRef, writeLine } from "./ constructors.ts";
 import { doIO } from "./do-io.ts";
+import { FetchError, HttpError } from "./errors.ts";
 import { runIO } from "./run-io.ts";
 import { sleep } from "./utils.ts";
 
@@ -20,7 +21,7 @@ const myProgram = doIO(function* () {
 
   yield* writeLine("Loading greeting of the day...");
   yield* modifyRef(stepCount, (n) => n + 1);
-  const body = yield* fetchUrl("https://httpbin.org/uuid");
+  const body = yield* orElse(fetchUrl("https://httpbin.org/uuid"), () => pure("default-token"));
 
   const total = yield* readRef(stepCount);
   yield* writeLine(`Wow, ${name}, ${age}! Token: ${body}. Steps: ${total}`);
@@ -31,22 +32,19 @@ void (async () => {
 
   const productionNodeWorld = {
     fetch: async (url: string, options?: RequestInit) => {
-      // let resp: Response;
+      let resp: Response;
 
-      const resp = await fetch(url, options);
+      try {
+        resp = await fetch(url, options);
+      } catch (e) {
+        throw new FetchError(url, e);
+      }
 
-      return await resp.text();
-      // try {
-      //   resp = await fetch(url, options);
-      // } catch (e) {
-      //   throw new FetchError(url, e);
-      // }
-
-      // if (resp.status > 299) {
-      //   throw new HttpError(resp.status, url);
-      // } else {
-      //   return await resp.text();
-      // }
+      if (resp.status > 299) {
+        throw new HttpError(resp.status, url);
+      } else {
+        return await resp.text();
+      }
     },
     readLine: () => rl.question(""),
     sleep: sleep,

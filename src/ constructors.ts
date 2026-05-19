@@ -1,7 +1,7 @@
 import { mapError } from "./combinators.ts";
 import { FetchError, HttpError } from "./errors.ts";
 import { mkIO } from "./mk-io.ts";
-import { IO, IORef } from "./types.ts";
+import { Cause, Exit, IO, IORef } from "./types.ts";
 
 export const pure = <A>(value: A): IO<A> =>
   mkIO({
@@ -73,3 +73,19 @@ export const writeRef = <A>(ref: IORef<A>, value: A): IO<void> =>
     tag: "writeRef",
     value,
   });
+
+export const die = (defect: unknown): IO<never> =>
+  mkIO({
+    defect,
+    tag: "die",
+  });
+
+export const success = <A>(value: A): Exit<never, A> => ({
+  _tag: "Success",
+  value,
+});
+
+export const failure = <E>(cause: Cause<E>): Exit<E, never> => ({
+  _tag: "Failure",
+  cause,
+});

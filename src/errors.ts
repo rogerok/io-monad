@@ -19,7 +19,11 @@ export class HttpError extends Error {
 }
 export class ParseError extends Error {
   readonly _tag = "ParseError";
-  constructor(readonly cause: string) {
+
+  constructor(
+    readonly message: string,
+    readonly input: string,
+  ) {
     super();
   }
 }

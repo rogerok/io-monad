@@ -24,6 +24,7 @@ const myProgram = doIO(function* () {
   const body = yield* orElse(fetchUrl("https://httpbin.org/uuid"), () => pure("default-token"));
 
   const total = yield* readRef(stepCount);
+  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   yield* writeLine(`Wow, ${name}, ${age}! Token: ${body}. Steps: ${total}`);
 });
 

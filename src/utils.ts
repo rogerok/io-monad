@@ -9,10 +9,10 @@ export const exhaustive = (x: never): never => {
 export const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-export const parseJson = (body: string): IO<unknown, ParseError> => {
+export const parseJson = <A>(body: string): IO<A, ParseError> => {
   try {
     return pure(JSON.parse(body));
   } catch (e) {
-    return fail(new ParseError(e instanceof Error ? String(e.cause) : "Cannot parse json"));
+    return fail(new ParseError(e instanceof Error ? String(e.cause) : "Cannot parse json", body));
   }
 };

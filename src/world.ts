@@ -1,5 +1,6 @@
 import { createInterface } from "node:readline";
 
+import { FetchError, HttpError } from "./errors.ts";
 import { sleep } from "./utils.ts";
 
 type Fetches = {
@@ -14,6 +15,19 @@ export interface World {
 }
 
 export type TestWorld = {
+  fetches: Fetches[];
+  output: string[];
+} & World;
+
+type TypedFetchMock =
+  | {
+      body?: string;
+      networkError?: string;
+      status?: number;
+    }
+  | string;
+
+export type TypedTestWorld = {
   fetches: Fetches[];
   output: string[];
 } & World;
@@ -59,6 +73,64 @@ export const testWorld = (args?: {
     },
     sleep,
     //  eslint-disable-next-line @typescript-eslint/require-await
+    writeLine: async (s: string) => {
+      output.push(s);
+    },
+  };
+};
+
+export const typedTestWorld = (args?: {
+  fetchMocks?: Record<string, TypedFetchMock>;
+  inputs?: string[];
+}): TypedTestWorld => {
+  let cursor = 0;
+  const inputs = args?.inputs ?? [];
+  const output: string[] = [];
+  const fetchMocks: Record<string, TypedFetchMock> = args?.fetchMocks ?? {};
+  const fetches: Fetches[] = [];
+
+  return {
+    fetch: async (url: string) => {
+      const mock = fetchMocks[url];
+
+      if (mock === undefined) {
+        throw new FetchError(url, `fetch to ${url} not mocked`);
+      }
+
+      fetches.push({ url });
+
+      if (typeof mock === "string") {
+        return mock;
+      }
+
+      if (mock.networkError !== undefined) {
+        throw new Error(mock.networkError);
+      }
+
+      const status = mock.status ?? 200;
+      if (status < 200 || status >= 300) {
+        throw new HttpError(status, url);
+      }
+
+      return mock.body ?? "";
+    },
+    fetches,
+    output,
+    readLine: async () => {
+      if (cursor >= inputs.length) {
+        throw new Error("readLine called more times than inputs provided");
+      }
+
+      const value = inputs[cursor];
+
+      if (value === undefined) {
+        throw new Error("Can't read line");
+      }
+
+      cursor += 1;
+      return value;
+    },
+    sleep,
     writeLine: async (s: string) => {
       output.push(s);
     },

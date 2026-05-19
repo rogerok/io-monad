@@ -60,8 +60,38 @@ export type IOWriteRef<A, E> = {
   value: unknown;
 };
 
+export type IODie = {
+  defect: unknown;
+  tag: "die";
+};
+
+export type Fail<E> = {
+  _tag: "Fail";
+  error: E;
+};
+
+export type Die = {
+  _tag: "Die";
+  defect: unknown;
+};
+
+export type Cause<E> = Die | Fail<E>;
+
+export type Failure<E> = {
+  _tag: "Failure";
+  cause: Cause<E>;
+};
+
+export type Success<A> = {
+  _tag: "Success";
+  value: A;
+};
+
+export type Exit<E, A> = Failure<E> | Success<A>;
+
 export type RawIO<A, E = never> =
   | Fetch<A, E>
+  | IODie
   | IOFail<E>
   | IONewRef<A, E>
   | IOReadRef<A, E>

@@ -70,16 +70,24 @@ export const bind = <A, B, E1, E2>(io: IO<A, E1>, f: (a: A) => IO<B, E2>): IO<B,
         tag: io.tag,
       });
 
+    case "die":
+      return mkIO({
+        defect: io.defect,
+        tag: io.tag,
+      });
+
     default:
       return exhaustive(io);
   }
 };
 
-export const map = <A, B>(io: IO<A>, f: (a: A) => B): IO<B> => bind(io, (a) => pure(f(a)));
-export const andThen = <A, B>(first: IO<A>, second: IO<B>): IO<B> => bind(first, () => second);
+export const map = <A, B, E>(io: IO<A, E>, f: (a: A) => B): IO<B, E> => bind(io, (a) => pure(f(a)));
+export const andThen = <A, B, E1, E2>(first: IO<A, E1>, second: IO<B, E2>): IO<B, E1 | E2> =>
+  bind(first, () => second);
 
 export const orElse = <A, E1, E2>(io: IO<A, E1>, fallback: (e: E1) => IO<A, E2>): IO<A, E2> =>
   bind(attempt(io), (r) => (r.ok ? pure(r.value) : fallback(r.error)));
+
 export const mapError = <A, E1, E2>(io: IO<A, E1>, f: (e: E1) => E2): IO<A, E2> =>
   orElse(io, (e) => fail(f(e)));
 
@@ -93,6 +101,7 @@ export const attempt = <A, E>(io: IO<A, E>): IO<Result<E, A>> => {
         tag: "pure",
         value: { error: io.error, ok: false },
       });
+
     case "pure":
       return mkIO({
         tag: "pure",
@@ -154,6 +163,12 @@ export const attempt = <A, E>(io: IO<A, E>): IO<Result<E, A>> => {
       return mkIO({
         next: (v) => attempt(io.next(v)),
         ref: io.ref,
+        tag: io.tag,
+      });
+
+    case "die":
+      return mkIO({
+        defect: io.defect,
         tag: io.tag,
       });
 

@@ -12,7 +12,7 @@ export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return current.value;
       }
-
+      // TODO: wrap in try
       case "writeLine": {
         await world.writeLine(current.text);
         current = current.next;

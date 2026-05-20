@@ -21,6 +21,7 @@ export type Fetch<A, E> = {
   url: string;
   options?: RequestInit;
   next: (body: string) => IO<A, E>;
+  onError: (err: unknown) => IO<A, E>;
 };
 
 export type Sleep<A, E> = {

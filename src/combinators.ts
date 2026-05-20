@@ -24,6 +24,7 @@ export const bind = <A, B, E1, E2>(io: IO<A, E1>, f: (a: A) => IO<B, E2>): IO<B,
     case "fetch":
       return mkIO({
         next: (body) => bind(io.next(body), f),
+        onError: (e) => bind(io.onError(e), f),
         options: io.options,
         tag: io.tag,
         url: io.url,
@@ -132,6 +133,7 @@ export const attempt = <A, E>(io: IO<A, E>): IO<Result<E, A>> => {
     case "fetch":
       return mkIO({
         next: (v) => attempt(io.next(v)),
+        onError: (e) => attempt(io.onError(e)),
         options: io.options,
         tag: io.tag,
         url: io.url,

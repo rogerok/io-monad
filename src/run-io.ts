@@ -2,7 +2,7 @@ import { IO, IORef } from "./types.ts";
 import { exhaustive } from "./utils.ts";
 import { World } from "./world.ts";
 
-export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {
+export const runIO = async <A, E>(io: IO<A, E>, world: World): Promise<A> => {
   let current: IO<any, any> = io;
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -26,8 +26,12 @@ export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {
       }
 
       case "fetch": {
-        const body = await world.fetch(current.url, current.options);
-        current = current.next(body);
+        try {
+          const body = await world.fetch(current.url, current.options);
+          current = current.next(body);
+        } catch (e) {
+          if (current.tag === "fetch") current = current.onError(e);
+        }
         break;
       }
 
@@ -61,6 +65,10 @@ export const runIO = async <A>(io: IO<A>, world: World): Promise<A> => {
 
       case "fail": {
         throw current.error;
+      }
+
+      case "die": {
+        throw current.defect;
       }
 
       default:

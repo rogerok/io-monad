@@ -1,4 +1,3 @@
-import { mapError } from "./combinators.ts";
 import { FetchError, HttpError } from "./errors.ts";
 import { mkIO } from "./mk-io.ts";
 import { Cause, Exit, IO, IORef } from "./types.ts";
@@ -28,16 +27,18 @@ export const writeLine = (text: string): IO<void> =>
   });
 
 export const fetchUrl = (url: string, options?: RequestInit): IO<string, FetchError | HttpError> =>
-  mapError(
-    mkIO<string, unknown>({
-      next: pure,
-      options,
-      tag: "fetch",
-      url,
-    }),
-    (e) =>
-      e instanceof HttpError || e instanceof FetchError ? e : new FetchError(url, "unknown error"),
-  );
+  mkIO({
+    next: pure,
+    onError: (e) =>
+      fail(
+        e instanceof HttpError || e instanceof FetchError
+          ? e
+          : new FetchError(url, "unknown error"),
+      ),
+    options,
+    tag: "fetch",
+    url,
+  });
 
 export const sleep = (ms: number): IO<void> =>
   mkIO({

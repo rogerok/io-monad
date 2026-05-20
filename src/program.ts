@@ -8,7 +8,7 @@ import { FetchError, HttpError } from "./errors.ts";
 import { runIO } from "./run-io.ts";
 import { sleep } from "./utils.ts";
 
-const myProgram = doIO(function* () {
+export const myProgram = doIO(function* () {
   const stepCount = yield* newRef(0);
 
   yield* writeLine("What is your name?");

@@ -1,0 +1,1509 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="tags"
+      content="typescript, freer-monad, free-monad, extensible-effects, io-monad, effect-system"
+    />
+    <title>Freer в src/freer: op, cont и трассировка интерпретатора</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0d1117;
+        --panel: #151b23;
+        --panel-2: #1e2630;
+        --panel-3: #111820;
+        --line: #303b49;
+        --line-strong: #52677e;
+        --text: #e6edf3;
+        --soft: #c7d1dd;
+        --muted: #9aa7b5;
+        --blue: #58a6ff;
+        --cyan: #56d4dd;
+        --green: #3fb950;
+        --yellow: #d29922;
+        --red: #ff7b72;
+        --violet: #bc8cff;
+        --code: #080d13;
+        --shadow: rgba(0, 0, 0, 0.28);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 8% 0%, rgba(88, 166, 255, 0.15), transparent 30rem),
+          radial-gradient(circle at 90% 12%, rgba(86, 212, 221, 0.1), transparent 26rem),
+          linear-gradient(180deg, #0d1117 0%, #090d12 100%);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.6;
+      }
+
+      a {
+        color: #8fd3ff;
+      }
+
+      header {
+        background: rgba(13, 17, 23, 0.9);
+        border-bottom: 1px solid var(--line);
+        backdrop-filter: blur(12px);
+        position: sticky;
+        top: 0;
+        z-index: 20;
+      }
+
+      .topbar {
+        align-items: center;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        margin: 0 auto;
+        max-width: 1220px;
+        padding: 0.8rem 1.25rem;
+      }
+
+      .brand {
+        display: grid;
+        gap: 0.05rem;
+      }
+
+      .brand strong {
+        font-size: 1rem;
+      }
+
+      .brand span {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        justify-content: flex-end;
+      }
+
+      nav a {
+        border: 1px solid transparent;
+        border-radius: 6px;
+        color: var(--soft);
+        font-size: 0.85rem;
+        padding: 0.32rem 0.54rem;
+        text-decoration: none;
+      }
+
+      nav a:hover {
+        background: var(--panel-2);
+        border-color: var(--line);
+      }
+
+      main {
+        margin: 0 auto;
+        max-width: 1220px;
+        padding: 2rem 1.25rem 4rem;
+      }
+
+      section {
+        border-top: 1px solid var(--line);
+        padding: 2rem 0;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.18;
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 4vw, 4rem);
+        max-width: 920px;
+      }
+
+      h2 {
+        font-size: clamp(1.45rem, 2vw, 2.2rem);
+        margin-bottom: 0.75rem;
+      }
+
+      h3 {
+        font-size: 1.08rem;
+      }
+
+      p {
+        margin: 0.56rem 0;
+      }
+
+      code,
+      pre {
+        font-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      }
+
+      code {
+        color: #dbeaff;
+      }
+
+      pre {
+        background: var(--code);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        color: #e0eeff;
+        font-size: 0.88rem;
+        margin: 0.85rem 0 0;
+        overflow: auto;
+        padding: 0.95rem;
+      }
+
+      button {
+        align-items: center;
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        color: var(--text);
+        cursor: pointer;
+        display: inline-flex;
+        font: inherit;
+        gap: 0.4rem;
+        justify-content: center;
+        min-height: 2.25rem;
+        padding: 0.35rem 0.7rem;
+      }
+
+      button:hover,
+      button.active {
+        border-color: var(--blue);
+        box-shadow: 0 0 0 1px rgba(88, 166, 255, 0.22) inset;
+      }
+
+      button.active {
+        background: rgba(88, 166, 255, 0.16);
+      }
+
+      .hero {
+        display: grid;
+        gap: 1rem;
+        padding: 1.35rem 0 1.7rem;
+      }
+
+      .lead {
+        color: var(--soft);
+        font-size: 1.08rem;
+        max-width: 900px;
+      }
+
+      .context {
+        background: rgba(21, 27, 35, 0.7);
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--blue);
+        border-radius: 8px;
+        color: var(--soft);
+        max-width: 960px;
+        padding: 0.9rem 1rem;
+      }
+
+      .grid {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .grid.two {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .grid.three {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .panel {
+        background: rgba(21, 27, 35, 0.86);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: 0 14px 40px var(--shadow);
+        padding: 1rem;
+      }
+
+      .panel.tight {
+        padding: 0.82rem;
+      }
+
+      .panel.focus {
+        border-color: rgba(88, 166, 255, 0.62);
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .soft {
+        color: var(--soft);
+      }
+
+      .pill {
+        align-items: center;
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--soft);
+        display: inline-flex;
+        font-size: 0.82rem;
+        gap: 0.4rem;
+        margin: 0.15rem 0.2rem 0.15rem 0;
+        padding: 0.2rem 0.55rem;
+      }
+
+      .tag {
+        border-radius: 5px;
+        display: inline-block;
+        font-size: 0.78rem;
+        margin: 0.08rem 0.18rem 0.08rem 0;
+        padding: 0.12rem 0.38rem;
+      }
+
+      .tag.blue {
+        background: rgba(88, 166, 255, 0.16);
+        color: #b8dcff;
+      }
+
+      .tag.green {
+        background: rgba(63, 185, 80, 0.16);
+        color: #b9efc4;
+      }
+
+      .tag.yellow {
+        background: rgba(210, 153, 34, 0.16);
+        color: #efd390;
+      }
+
+      .tag.violet {
+        background: rgba(188, 140, 255, 0.16);
+        color: #dbcaff;
+      }
+
+      .tag.red {
+        background: rgba(255, 123, 114, 0.15);
+        color: #ffc0bb;
+      }
+
+      .summary {
+        background: rgba(86, 212, 221, 0.09);
+        border: 1px solid rgba(86, 212, 221, 0.36);
+        border-radius: 8px;
+        color: #d0fbff;
+        margin-top: 0.95rem;
+        padding: 0.85rem;
+      }
+
+      .warning {
+        background: rgba(210, 153, 34, 0.09);
+        border: 1px solid rgba(210, 153, 34, 0.36);
+        border-radius: 8px;
+        color: #f2dca7;
+        margin-top: 0.95rem;
+        padding: 0.85rem;
+      }
+
+      .diagram {
+        display: grid;
+        gap: 0.65rem;
+        margin-top: 1rem;
+      }
+
+      .diagram-row {
+        align-items: stretch;
+        display: grid;
+        gap: 0.55rem;
+        grid-template-columns: minmax(0, 1fr) 2rem minmax(0, 1fr) 2rem minmax(0, 1fr);
+      }
+
+      .arrow {
+        align-items: center;
+        color: var(--blue);
+        display: flex;
+        font-size: 1.4rem;
+        justify-content: center;
+      }
+
+      .box {
+        background: var(--panel-3);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0.78rem;
+      }
+
+      .box strong {
+        display: block;
+        margin-bottom: 0.22rem;
+      }
+
+      .matrix {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        margin-top: 1rem;
+        overflow: auto;
+      }
+
+      table {
+        border-collapse: collapse;
+        min-width: 760px;
+        width: 100%;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 0.72rem;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--panel-2);
+        color: var(--soft);
+        font-size: 0.9rem;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .debugger {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin: 0.8rem 0;
+      }
+
+      .debugger-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(0, 1.04fr) minmax(0, 0.96fr);
+      }
+
+      .debug-title {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: space-between;
+      }
+
+      .meter {
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+
+      .debug-code {
+        background: var(--code);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        display: grid;
+        gap: 0.18rem;
+        margin-top: 0.8rem;
+        padding: 0.65rem;
+      }
+
+      .code-line {
+        border-left: 3px solid transparent;
+        border-radius: 5px;
+        color: var(--muted);
+        font-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 0.84rem;
+        min-height: 1.62rem;
+        padding: 0.16rem 0.45rem;
+        white-space: pre-wrap;
+      }
+
+      .code-line.active {
+        background: rgba(88, 166, 255, 0.13);
+        border-left-color: var(--blue);
+        color: var(--text);
+      }
+
+      .state-grid {
+        display: grid;
+        gap: 0.55rem;
+        margin-top: 0.8rem;
+      }
+
+      .state-row {
+        background: rgba(8, 13, 19, 0.72);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 0.62rem;
+      }
+
+      .state-row label {
+        color: var(--muted);
+        display: block;
+        font-size: 0.76rem;
+        margin-bottom: 0.2rem;
+        text-transform: uppercase;
+      }
+
+      .state-row strong,
+      .state-row span {
+        overflow-wrap: anywhere;
+      }
+
+      .trace-list {
+        display: grid;
+        gap: 0.55rem;
+        margin-top: 0.85rem;
+      }
+
+      .trace-item {
+        background: rgba(8, 13, 19, 0.7);
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--muted);
+        border-radius: 7px;
+        padding: 0.62rem;
+      }
+
+      .trace-item.active {
+        border-left-color: var(--green);
+      }
+
+      .trace-item strong {
+        display: block;
+      }
+
+      .mini-output {
+        background: #090f15;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        color: var(--soft);
+        min-height: 5rem;
+        padding: 0.65rem;
+        white-space: pre-wrap;
+      }
+
+      .node-stack {
+        display: grid;
+        gap: 0.55rem;
+        margin-top: 0.85rem;
+      }
+
+      .node {
+        background: #0f1620;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0.75rem;
+      }
+
+      .node strong {
+        color: var(--text);
+        display: block;
+      }
+
+      .node.op {
+        border-color: rgba(88, 166, 255, 0.55);
+      }
+
+      .node.cont {
+        border-color: rgba(210, 153, 34, 0.58);
+      }
+
+      .node.done {
+        border-color: rgba(63, 185, 80, 0.58);
+      }
+
+      .cards {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: 1rem;
+      }
+
+      .source-card {
+        background: rgba(21, 27, 35, 0.86);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 1rem;
+      }
+
+      .source-card a {
+        font-weight: 700;
+      }
+
+      @media (max-width: 940px) {
+        .topbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        nav {
+          justify-content: flex-start;
+        }
+
+        .grid.two,
+        .grid.three,
+        .debugger-grid,
+        .cards {
+          grid-template-columns: 1fr;
+        }
+
+        .diagram-row {
+          grid-template-columns: 1fr;
+        }
+
+        .arrow {
+          transform: rotate(90deg);
+        }
+
+        table {
+          min-width: 680px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="topbar">
+        <div class="brand">
+          <strong>Freer в src/freer</strong>
+          <span>op отдельно, continuation отдельно, interpreter отдельно</span>
+        </div>
+        <nav aria-label="Разделы">
+          <a href="#intro">Контекст</a>
+          <a href="#shape">Форма</a>
+          <a href="#bind">bind</a>
+          <a href="#run">run</a>
+          <a href="#trace">Трассировка</a>
+          <a href="#extension">Расширение</a>
+          <a href="#sources">Источники</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" id="intro">
+        <span class="pill">учебная глава · compact profile · TypeScript</span>
+        <h1>Freer: как `src/freer` отделяет программу от интерпретатора</h1>
+        <p class="lead">
+          В монолитной IO-монаде каждый эффект был вариантом общего `IO` и `bind` знал про все
+          теги. Freer меняет форму данных: инструкция хранит только запрос, а продолжение
+          выносится в универсальное поле `cont`. Поэтому `freerBind` работает одинаково для
+          `readLine`, `writeLine`, `fetch`, `random`, `sleep` и будущих эффектов.
+        </p>
+        <div class="context">
+          <strong>Контекст.</strong> Эта страница объясняет текущую реализацию из `src/freer/*`:
+          `types.ts`, `constructors.ts`, `freer-mk.ts`, `bind.ts`, `freer-do.ts`,
+          `freer-run.ts` и `program.ts`. Она не заменяет домашнее задание и не требует менять
+          `index.ts`: цель - увидеть механику уже собранного Freer encoding.
+        </div>
+      </section>
+
+      <section id="overview">
+        <h2>1. Карта идеи</h2>
+        <div class="grid three">
+          <div class="panel">
+            <h3>Программа</h3>
+            <p>
+              `FreerIO&lt;A&gt;` - значение. Оно может быть `pure`, `suspend` или `impure`.
+              В `impure` лежит один запрос `op` и функция `cont`, которая знает, как продолжить
+              программу после ответа на запрос.
+            </p>
+            <span class="tag blue">данные</span>
+            <span class="tag violet">yield*</span>
+          </div>
+          <div class="panel">
+            <h3>Композиция</h3>
+            <p>
+              `freerBind(m, f)` не исполняет эффекты. Он либо применяет `f` к готовому
+              `pure`, либо проталкивает `f` внутрь будущего продолжения. Ветка `impure` не
+              смотрит на `op.tag`.
+            </p>
+            <span class="tag green">bind</span>
+            <span class="tag yellow">cont</span>
+          </div>
+          <div class="panel">
+            <h3>Интерпретация</h3>
+            <p>
+              `freerRun` идёт по программе циклом. Только здесь `op.tag` превращается в
+              реальные действия из `FreerWorld`: чтение, печать, HTTP, random, sleep.
+            </p>
+            <span class="tag red">effects</span>
+            <span class="tag blue">World</span>
+          </div>
+        </div>
+
+        <div class="diagram" aria-label="Поток Freer">
+          <div class="diagram-row">
+            <div class="box">
+              <strong>smart constructor</strong>
+              <code>freerWriteLine("hi")</code>
+              <p class="muted">создаёт `impure` с `op` и начальным `cont`</p>
+            </div>
+            <div class="arrow">→</div>
+            <div class="box">
+              <strong>bind / do</strong>
+              <code>freerBind(node, f)</code>
+              <p class="muted">пересобирает continuation, не трогая мир</p>
+            </div>
+            <div class="arrow">→</div>
+            <div class="box">
+              <strong>interpreter</strong>
+              <code>freerRun(program, world)</code>
+              <p class="muted">выполняет `op` и вызывает `cont(resp)`</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="summary">
+          <strong>Вывод.</strong> Freer делает явной границу: ядро знает только `pure`,
+          `suspend`, `impure`; конкретные инструкции знает только interpreter.
+        </div>
+      </section>
+
+      <section id="shape">
+        <h2>2. Форма данных в `src/freer/types.ts`</h2>
+        <p>
+          В монолитном `IO` у каждой инструкции был свой `next`: у `ReadLine` это
+          `(s: string) =&gt; IO&lt;A&gt;`, у `WriteLine` это `IO&lt;A&gt;`, у `Fetch` это
+          `(body: string) =&gt; IO&lt;A&gt;`. Freer нормализует форму: ответ инструкции
+          описывается фантомным `_resp`, а продолжение всегда лежит рядом с `op`.
+        </p>
+
+        <div class="grid two">
+          <div class="panel">
+            <h3>Инструкция: только запрос</h3>
+            <pre><code>export type FreerReadLine = {
+  _resp: string;
+  tag: "readLine";
+};
+
+export type FreerWriteLine = {
+  _resp: void;
+  tag: "writeLine";
+  text: string;
+};
+
+export type FreerRandom = {
+  _resp: number;
+  tag: "random";
+};</code></pre>
+            <p class="muted">
+              `_resp` не используется в runtime. Это метка для TypeScript: “если interpreter
+              выполнит такую инструкцию, ответ будет этого типа”.
+            </p>
+          </div>
+
+          <div class="panel">
+            <h3>Freer-узел: запрос + continuation</h3>
+            <pre><code>export type FreerImpure&lt;I extends Instr&lt;any&gt;, A&gt; = {
+  tag: "impure";
+  op: I;
+  cont: (resp?: any) =&gt; Freer&lt;I, A&gt;;
+};
+
+export type Freer&lt;I extends Instr&lt;any&gt;, A&gt; = {
+  [Symbol.iterator](): FreerGen&lt;A&gt;;
+} &amp; RawFreer&lt;I, A&gt;;</code></pre>
+            <p class="muted">
+              `A` - финальный результат всей программы. `op` не должен знать этот `A`.
+              Его знает `cont`.
+            </p>
+          </div>
+        </div>
+
+        <div class="matrix">
+          <table>
+            <thead>
+              <tr>
+                <th>Поле</th>
+                <th>Где живёт</th>
+                <th>Что означает</th>
+                <th>Почему важно</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>op</code></td>
+                <td><code>FreerImpure</code></td>
+                <td>Один запрос к внешнему миру: `readLine`, `fetch`, `sleep`.</td>
+                <td>Инструкции больше не содержат продолжение.</td>
+              </tr>
+              <tr>
+                <td><code>cont</code></td>
+                <td><code>FreerImpure</code></td>
+                <td>Функция “ответ эффекта -&gt; следующая программа”.</td>
+                <td>`bind` может композиционно менять только continuation.</td>
+              </tr>
+              <tr>
+                <td><code>_resp</code></td>
+                <td><code>Instr</code></td>
+                <td>Фантомный тип ответа инструкции.</td>
+                <td>Типизирует smart constructors без хранения runtime-поля.</td>
+              </tr>
+              <tr>
+                <td><code>suspend</code></td>
+                <td><code>RawFreer</code></td>
+                <td>Отложенная сборка поддерева.</td>
+                <td>Даёт свежий generator при каждом `freerRun`.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="summary">
+          <strong>Вывод.</strong> Freer не делает эффекты “магическими”. Он меняет
+          представление AST так, чтобы `bind` не зависел от списка инструкций.
+        </div>
+      </section>
+
+      <section id="constructors">
+        <h2>3. Smart constructors: минимальный `impure`</h2>
+        <p>
+          Каждый constructor создаёт один узел `impure`. Его `cont` сначала просто
+          возвращает результат в `freerPure`. Позже `freerBind` заменит это продолжение
+          на более длинное.
+        </p>
+
+        <div class="grid two">
+          <div class="panel">
+            <h3>`freerReadLine`</h3>
+            <pre><code>export const freerReadLine: FreerIO&lt;string&gt; = freerMk({
+  tag: "impure",
+  op: { tag: "readLine" } as FreerReadLine,
+  cont: freerPure,
+});</code></pre>
+            <p>
+              Ответ `readLine` - строка. Поэтому начальное продолжение равно
+              `freerPure`: строка становится итоговым значением этой маленькой программы.
+            </p>
+          </div>
+
+          <div class="panel">
+            <h3>`freerWriteLine`</h3>
+            <pre><code>export const freerWriteLine = (text: string): FreerIO&lt;void&gt; =&gt;
+  freerMk({
+    tag: "impure",
+    op: { tag: "writeLine", text } as FreerWriteLine,
+    cont: () =&gt; freerPure(undefined),
+  });</code></pre>
+            <p>
+              `writeLine` не возвращает полезное значение, поэтому `cont` игнорирует
+              ответ interpreter-а и завершает узел `undefined`.
+            </p>
+          </div>
+        </div>
+
+        <div class="warning">
+          <strong>Типовая ловушка.</strong> `freerReadLine` здесь значение, а не функция.
+          Это важно для той же причины, что и в обычном `IO`: само значение уже является
+          отложенным описанием программы.
+        </div>
+      </section>
+
+      <section id="bind">
+        <h2>4. Почему `freerBind` не знает про `readLine` и `fetch`</h2>
+        <p>
+          В Freer `bind` работает с тремя формами: `pure`, `suspend`, `impure`.
+          Конкретный эффект спрятан внутри `op`, но `bind` не нужно его понимать.
+          Ему достаточно знать, где лежит продолжение.
+        </p>
+
+        <pre><code>export const freerBind = &lt;I extends Instr&lt;any&gt;, A, B&gt;(
+  m: Freer&lt;I, A&gt;,
+  f: (a: A) =&gt; Freer&lt;I, B&gt;,
+): Freer&lt;I, B&gt; =&gt; {
+  switch (m.tag) {
+    case "pure":
+      return f(m.value);
+
+    case "suspend":
+      return freerMk({
+        tag: "suspend",
+        thunk: () =&gt; freerBind(m.thunk(), f),
+      });
+
+    case "impure":
+      return freerMk({
+        tag: "impure",
+        op: m.op,
+        cont: (resp) =&gt; freerBind(m.cont(resp), f),
+      });
+  }
+};</code></pre>
+
+        <div class="grid three">
+          <div class="panel tight">
+            <h3>`pure`</h3>
+            <p>
+              Значение уже готово, значит можно сразу вызвать `f(value)`. Это обычное
+              правило `bind(Pure(a), f) = f(a)`.
+            </p>
+          </div>
+          <div class="panel tight">
+            <h3>`suspend`</h3>
+            <p>
+              Поддерево ещё не создано. `bind` сохраняет ленивую границу и добавляет
+              `f` внутрь будущего `thunk`.
+            </p>
+          </div>
+          <div class="panel tight">
+            <h3>`impure`</h3>
+            <p>
+              Запрос `op` остаётся прежним. Меняется только `cont`: после ответа сначала
+              строится старый хвост, затем к нему приклеивается `f`.
+            </p>
+          </div>
+        </div>
+
+        <div class="summary">
+          <strong>Вывод.</strong> Новый эффект не требует правки `freerBind`, потому что
+          `bind` больше не делает switch по `op.tag`.
+        </div>
+      </section>
+
+      <section id="do">
+        <h2>5. `freerDo`, `yield*` и `freerMk`</h2>
+        <p>
+          `freerDo` даёт линейный синтаксис поверх тех же `impure`-узлов. Важная деталь:
+          generator создаётся внутри `freerSuspend`, поэтому один и тот же `program` можно
+          запускать несколько раз. Без `suspend` generator был бы одноразовым состоянием,
+          зашитым в программу.
+        </p>
+
+        <div class="grid two">
+          <div class="panel">
+            <h3>Как `yield* freerReadLine` становится typed</h3>
+            <pre><code>export const freerMk = &lt;I extends Instr&lt;any&gt;, A&gt;(
+  freer: RawFreer&lt;I, A&gt;,
+): Freer&lt;I, A&gt; =&gt; {
+  Object.defineProperty(freer, Symbol.iterator, {
+    enumerable: false,
+    value: function* () {
+      return (yield new YieldWrap(this)) as A;
+    },
+  });
+
+  return freer as Freer&lt;I, A&gt;;
+};</code></pre>
+            <p>
+              `yield*` вызывает `Symbol.iterator`. Итератор отдаёт наружу `YieldWrap(this)`,
+              а возвращаемый тип итератора становится типом выражения `yield*`.
+            </p>
+          </div>
+
+          <div class="panel">
+            <h3>Как generator превращается в Freer</h3>
+            <pre><code>export const freerDo = &lt;A&gt;(genFn: () =&gt; FreerGen&lt;A&gt;): FreerIO&lt;A&gt; =&gt;
+  freerSuspend(() =&gt; {
+    const gen = genFn();
+
+    const walk = (v: unknown): FreerIO&lt;A&gt; =&gt; {
+      const result = gen.next(v);
+
+      if (result.done) {
+        return freerPure(result.value);
+      }
+
+      return freerBind(
+        result.value.value,
+        (v) =&gt; freerSuspend(() =&gt; walk(v)),
+      );
+    };
+
+    return walk(undefined);
+  });</code></pre>
+            <p>
+              `result.value` - это `YieldWrap`. Его `.value` - сам Freer-узел, который
+              нужно связать с продолжением `walk`.
+            </p>
+          </div>
+        </div>
+
+        <div class="summary">
+          <strong>Вывод.</strong> `yield*` не выполняет эффект. Он отдаёт Freer-узел в
+          `freerDo`; выполнение начнётся только в `freerRun`.
+        </div>
+      </section>
+
+      <section id="run">
+        <h2>6. `freerRun`: единственный switch по инструкциям</h2>
+        <p>
+          Interpreter получает `FreerIO&lt;A&gt;` и `FreerWorld`. Пока текущий узел не `pure`,
+          он либо раскрывает `suspend`, либо берёт `current.op`, выполняет соответствующий
+          метод мира и передаёт результат в `current.cont`.
+        </p>
+
+        <pre><code>export const freerRun = async &lt;A&gt;(
+  freer: FreerIO&lt;A&gt;,
+  world: FreerWorld,
+): Promise&lt;A&gt; =&gt; {
+  let current: FreerIO&lt;A&gt; = freer;
+
+  while (true) {
+    if (current.tag === "pure") return current.value;
+    if (current.tag === "suspend") {
+      current = current.thunk();
+      continue;
+    }
+
+    const op = current.op;
+
+    switch (op.tag) {
+      case "readLine":
+        current = current.cont(await world.readLine());
+        break;
+      case "writeLine":
+        await world.writeLine(op.text);
+        current = current.cont();
+        break;
+      case "fetch":
+        current = current.cont(await world.fetch(op.url, op.options));
+        break;
+      case "random":
+        current = current.cont(world.random());
+        break;
+      case "sleep":
+        await world.sleep(op.ms);
+        current = current.cont();
+        break;
+      case "fail":
+        throw op.error;
+    }
+  }
+};</code></pre>
+
+        <div class="matrix">
+          <table>
+            <thead>
+              <tr>
+                <th>op.tag</th>
+                <th>World-вызов</th>
+                <th>Что передаётся в `cont`</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>readLine</code></td>
+                <td><code>await world.readLine()</code></td>
+                <td><code>string</code></td>
+              </tr>
+              <tr>
+                <td><code>writeLine</code></td>
+                <td><code>await world.writeLine(op.text)</code></td>
+                <td><code>undefined</code></td>
+              </tr>
+              <tr>
+                <td><code>fetch</code></td>
+                <td><code>await world.fetch(op.url, op.options)</code></td>
+                <td><code>string</code></td>
+              </tr>
+              <tr>
+                <td><code>random</code></td>
+                <td><code>world.random()</code></td>
+                <td><code>number</code></td>
+              </tr>
+              <tr>
+                <td><code>sleep</code></td>
+                <td><code>await world.sleep(op.ms)</code></td>
+                <td><code>undefined</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="summary">
+          <strong>Вывод.</strong> Все side effects локализованы в `freerRun` и `FreerWorld`.
+          Сам `program` можно запускать в Node, браузере, тестах или через logging-world.
+        </div>
+      </section>
+
+      <section id="trace">
+        <h2>7. Наглядная трассировка</h2>
+        <p>
+          Ниже один и тот же мини-сценарий проходит через `freerDo`, `freerBind` и
+          `freerRun`. Кнопки двигают execution trace. Следи за тремя регистрами:
+          `current`, `op`, `cont`. Они объясняют почти всю механику Freer.
+        </p>
+
+        <div class="debugger">
+          <div class="toolbar" aria-label="Управление трассировкой">
+            <button id="firstStep" type="button">сначала</button>
+            <button id="prevStep" type="button">назад</button>
+            <button id="nextStep" type="button">вперёд</button>
+            <button id="lastStep" type="button">в конец</button>
+          </div>
+
+          <div class="debugger-grid">
+            <div class="panel">
+              <div class="debug-title">
+                <h3 id="stepTitle">Шаг</h3>
+                <span class="meter" id="stepMeter">1 / 1</span>
+              </div>
+              <p id="stepText" class="soft"></p>
+              <div class="debug-code" id="codeBlock" aria-label="Активный код"></div>
+            </div>
+
+            <div class="panel">
+              <div class="debug-title">
+                <h3>Состояние</h3>
+                <span class="meter">runtime-модель</span>
+              </div>
+              <div class="state-grid">
+                <div class="state-row">
+                  <label>current</label>
+                  <strong id="stateCurrent"></strong>
+                </div>
+                <div class="state-row">
+                  <label>op</label>
+                  <span id="stateOp"></span>
+                </div>
+                <div class="state-row">
+                  <label>cont</label>
+                  <span id="stateCont"></span>
+                </div>
+                <div class="state-row">
+                  <label>world/output</label>
+                  <div class="mini-output" id="stateOutput"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="debugger-grid">
+            <div class="panel">
+              <h3>Очередь событий</h3>
+              <div class="trace-list" id="traceList"></div>
+            </div>
+            <div class="panel">
+              <h3>Форма узлов</h3>
+              <div class="node-stack" id="nodeStack"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="summary">
+          <strong>Вывод.</strong> Interpreter всегда делает один и тот же цикл:
+          “посмотреть текущий узел, выполнить один `op`, вызвать `cont` с ответом”.
+          Вся бизнес-логика живёт в цепочке continuation-ов, построенной `freerDo` и `freerBind`.
+        </div>
+      </section>
+
+      <section id="extension">
+        <h2>8. Почему добавление `Random` не трогает `bind`</h2>
+        <p>
+          В текущем `src/freer` уже есть эффект `random`. Его добавление требует три локальные
+          вещи: тип инструкции, smart constructor, ветку interpreter-а. `freerBind` и
+          `freerDo` остаются прежними, потому что для них `random` - обычный `impure`.
+        </p>
+
+        <div class="grid three">
+          <div class="panel">
+            <h3>1. Тип инструкции</h3>
+            <pre><code>export type FreerRandom = {
+  _resp: number;
+  tag: "random";
+};</code></pre>
+          </div>
+          <div class="panel">
+            <h3>2. Constructor</h3>
+            <pre><code>export const freerRandom: FreerIO&lt;number&gt; = freerMk({
+  tag: "impure",
+  op: { tag: "random" } as FreerRandom,
+  cont: freerPure,
+});</code></pre>
+          </div>
+          <div class="panel">
+            <h3>3. Interpreter</h3>
+            <pre><code>case "random": {
+  current = current.cont(world.random());
+  break;
+}</code></pre>
+          </div>
+        </div>
+
+        <p>
+          Это и есть практический смысл “открыт для расширения”: монадическое ядро не
+          переписывается при появлении новой команды DSL. В TypeScript union `Instr` всё ещё
+          закрыт на уровне файла, но архитектурно зависимость сдвинута из `bind` в interpreter.
+        </p>
+
+        <div class="warning">
+          <strong>Граница реализации.</strong> Эта версия Freer ещё не использует
+          `FTCQueue`. Поэтому длинные левоассоциированные цепочки могут сохранять
+          асимптотические проблемы наивного Free/Freer. Историческая статья
+          “Reflection without Remorse” решает это через type-aligned sequence.
+        </div>
+      </section>
+
+      <section id="practice">
+        <h2>9. Практика и карточки</h2>
+        <p>
+          Упражнения вынесены в соседний файл
+          <a href="./freer-src-trace-explainer-exercises.md">freer-src-trace-explainer-exercises.md</a>.
+          Anki-export лежит рядом:
+          <a href="./freer-src-trace-explainer-anki-cards.txt">freer-src-trace-explainer-anki-cards.txt</a>.
+        </p>
+        <div class="summary">
+          <strong>Как заниматься.</strong> Сначала пройди трассировку руками до конца, затем
+          закрой страницу и попробуй по памяти объяснить, почему `freerBind` не содержит
+          веток `readLine`, `writeLine`, `fetch`.
+        </div>
+      </section>
+
+      <section id="related">
+        <h2>10. Related Topics</h2>
+        <div class="grid two">
+          <div class="panel">
+            <h3>Внутри проекта</h3>
+            <p>
+              `[[do-io-suspend-explainer]]`, `[[do-io-symbol-iterator-session-brief]]`,
+              `[[freer-part11-explainer]]`, `[[do-io-study-notes]]`.
+            </p>
+            <p class="muted">
+              Эти заметки закрывают предыдущие ступени: обычный IO, generator-based
+              do-notation, `Symbol.iterator`, одноразовость generator-а.
+            </p>
+          </div>
+          <div class="panel">
+            <h3>Следующие темы</h3>
+            <p>
+              `Free monad`, `Coyoneda`, `Left Kan extension`, `Extensible effects`,
+              `Effect handlers`, `FTCQueue`, `Codensity`.
+            </p>
+            <p class="muted">
+              Freer легче понять как инженерную нормализацию AST: инструкция отдельно,
+              ответ отдельно, continuation отдельно.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="sources">
+        <h2>11. Sources</h2>
+        <div class="cards">
+          <div class="source-card">
+            <a href="https://okmij.org/ftp/Haskell/extensible/more.pdf"
+              >Freer Monads, More Extensible Effects</a
+            >
+            <p>
+              Основная статья Kiselyov и Ishii. Полезна для связи Freer, extensible
+              effects, open union и performance-проблемы.
+            </p>
+            <span class="tag red">advanced</span>
+          </div>
+          <div class="source-card">
+            <a href="https://ir.cwi.nl/pub/22680"
+              >Reflection without Remorse</a
+            >
+            <p>
+              Статья van der Ploeg и Kiselyov о том, почему левоассоциированные bind
+              становятся дорогими и как type-aligned sequences это чинят.
+            </p>
+            <span class="tag red">advanced</span>
+          </div>
+          <div class="source-card">
+            <a href="https://atnos-org.github.io/eff/index.html">eff documentation</a>
+            <p>
+              Пример библиотеки extensible effects на Scala, основанной на “free-er”
+              monad и open union.
+            </p>
+            <span class="tag yellow">intermediate</span>
+          </div>
+        </div>
+        <div class="cards">
+          <div class="source-card">
+            <a href="./freer-part11-explainer.html">Локальный `freer-part11-explainer.html`</a>
+            <p>
+              Использован как локальный research material и источник терминологии для
+              учебной главы.
+            </p>
+            <span class="tag green">local</span>
+          </div>
+          <div class="source-card">
+            <a href="../src/freer/types.ts">`src/freer/types.ts`</a>
+            <p>Текущая форма `Freer`, `Instr`, `FreerWorld` и `FreerGen`.</p>
+            <span class="tag green">local code</span>
+          </div>
+          <div class="source-card">
+            <a href="../src/freer/freer-run.ts">`src/freer/freer-run.ts`</a>
+            <p>Interpreter и `runWithLogging`, где конкретные эффекты встречаются с `World`.</p>
+            <span class="tag green">local code</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const codeLines = [
+        "const program = freerDo(function* () {",
+        "  yield* freerWriteLine(\"What is your name?\");",
+        "  const name = yield* freerReadLine;",
+        "  const r = yield* freerRandom;",
+        "  const greeting = r < 0.5 ? \"Hello\" : \"Hi\";",
+        "  yield* freerWriteLine(`${greeting}, ${name}!`);",
+        "});",
+        "",
+        "freerRun(program, world)",
+      ];
+
+      const steps = [
+        {
+          title: "1. `freerDo` вернул `suspend`",
+          line: 0,
+          text:
+            "Синхронно построен один маленький Freer-узел. Generator ещё не создан, `world` не тронут.",
+          current: "{ tag: \"suspend\", thunk: Function }",
+          op: "нет: `suspend` не является instruction",
+          cont: "нет",
+          output: "",
+          nodes: [
+            ["suspend", "thunk хранит `genFn`, но не вызывает его"],
+          ],
+        },
+        {
+          title: "2. `freerRun` раскрывает первый `suspend`",
+          line: 8,
+          text:
+            "Interpreter видит `current.tag === \"suspend\"` и вызывает `current.thunk()`. Это всё ещё не side effect из DSL.",
+          current: "результат `thunk()` строится прямо сейчас",
+          op: "нет",
+          cont: "нет",
+          output: "",
+          nodes: [
+            ["suspend", "отложенная сборка программы"],
+            ["cont", "внутри будет создан свежий generator"],
+          ],
+        },
+        {
+          title: "3. Создан свежий generator",
+          line: 0,
+          text:
+            "`freerDo` вызывает `genFn()` внутри `suspend`. Поэтому второй запуск той же программы получит новый generator.",
+          current: "`walk(undefined)`",
+          op: "нет",
+          cont: "`walk` станет continuation после первого yield",
+          output: "",
+          nodes: [
+            ["cont", "gen.next(undefined) стартует тело generator-а"],
+          ],
+        },
+        {
+          title: "4. Первый `yield*` отдаёт `writeLine`",
+          line: 1,
+          text:
+            "`yield* freerWriteLine(...)` вызывает `Symbol.iterator`, наружу выходит `YieldWrap(freerWriteLine(...))`.",
+          current: "FreerImpure(writeLine)",
+          op: "{ tag: \"writeLine\", text: \"What is your name?\" }",
+          cont: "начальный `() => freerPure(undefined)`",
+          output: "",
+          nodes: [
+            ["op", "writeLine-запрос"],
+            ["cont", "после ответа вернёт `pure(undefined)`"],
+          ],
+        },
+        {
+          title: "5. `freerBind` приклеивает остаток generator-а",
+          line: 1,
+          text:
+            "`freerDo` вызывает `freerBind(result.value.value, v => freerSuspend(() => walk(v)))`. `op` остаётся прежним, меняется `cont`.",
+          current: "FreerImpure(writeLine) с новым cont",
+          op: "{ tag: \"writeLine\", text: \"What is your name?\" }",
+          cont: "после печати продолжить `walk(undefined)`",
+          output: "",
+          nodes: [
+            ["op", "тот же writeLine"],
+            ["cont", "старый cont -> bind -> suspend(walk)"],
+          ],
+        },
+        {
+          title: "6. Interpreter печатает первую строку",
+          line: 8,
+          text:
+            "`freerRun` выполняет `await world.writeLine(op.text)` и затем вызывает `current.cont()`.",
+          current: "следующий Freer-узел после `cont()`",
+          op: "writeLine",
+          cont: "`cont()` вернул `suspend(() => walk(undefined))`",
+          output: "What is your name?",
+          nodes: [
+            ["done", "side effect выполнен в World"],
+            ["suspend", "следующий шаг generator-а отложен"],
+          ],
+        },
+        {
+          title: "7. Generator доходит до `readLine`",
+          line: 2,
+          text:
+            "После раскрытия `suspend`, `walk(undefined)` вызывает `gen.next(undefined)`. Generator продолжает после первого `yield*` и останавливается на `freerReadLine`.",
+          current: "FreerImpure(readLine)",
+          op: "{ tag: \"readLine\" }",
+          cont: "после ответа продолжить `walk(name)`",
+          output: "What is your name?",
+          nodes: [
+            ["op", "readLine-запрос"],
+            ["cont", "`name` будет значением, переданным обратно в generator"],
+          ],
+        },
+        {
+          title: "8. Interpreter читает имя",
+          line: 8,
+          text:
+            "`world.readLine()` возвращает, например, `Alice`. Interpreter вызывает `current.cont(\"Alice\")`.",
+          current: "suspend(() => walk(\"Alice\"))",
+          op: "readLine -> \"Alice\"",
+          cont: "`walk(\"Alice\")` передаст строку в `gen.next`",
+          output: "What is your name?",
+          nodes: [
+            ["done", "получен ответ эффекта: Alice"],
+            ["cont", "ответ уходит в generator как результат `yield* freerReadLine`"],
+          ],
+        },
+        {
+          title: "9. Generator доходит до `random`",
+          line: 3,
+          text:
+            "`const name = yield* freerReadLine` теперь получил `Alice`. Следующий yield отдаёт инструкцию `random`.",
+          current: "FreerImpure(random)",
+          op: "{ tag: \"random\" }",
+          cont: "после ответа продолжить `walk(r)`",
+          output: "What is your name?",
+          nodes: [
+            ["op", "random-запрос"],
+            ["cont", "`r` попадёт в expression `yield* freerRandom`"],
+          ],
+        },
+        {
+          title: "10. `random` выбирает ветку",
+          line: 4,
+          text:
+            "Допустим, `world.random()` вернул `0.25`. Это число уходит в continuation, generator вычисляет `greeting = \"Hello\"`.",
+          current: "suspend(() => walk(0.25))",
+          op: "random -> 0.25",
+          cont: "продолжить generator со значением 0.25",
+          output: "What is your name?",
+          nodes: [
+            ["done", "получен number"],
+            ["cont", "generator выбирает greeting"],
+          ],
+        },
+        {
+          title: "11. Последний `writeLine`",
+          line: 5,
+          text:
+            "Generator отдаёт `freerWriteLine(`Hello, Alice!`)`. Interpreter печатает строку и вызывает continuation.",
+          current: "FreerImpure(writeLine)",
+          op: "{ tag: \"writeLine\", text: \"Hello, Alice!\" }",
+          cont: "после печати продолжить `walk(undefined)`",
+          output: "What is your name?\nHello, Alice!",
+          nodes: [
+            ["op", "writeLine-запрос"],
+            ["done", "output содержит две строки"],
+          ],
+        },
+        {
+          title: "12. Generator завершился, `pure(undefined)`",
+          line: 6,
+          text:
+            "Следующий `gen.next(undefined)` возвращает `done: true`. `freerDo` превращает результат в `freerPure`, а `freerRun` возвращает значение.",
+          current: "{ tag: \"pure\", value: undefined }",
+          op: "нет",
+          cont: "нет",
+          output: "What is your name?\nHello, Alice!",
+          nodes: [
+            ["done", "program завершён"],
+            ["done", "Promise из `freerRun` resolved"],
+          ],
+        },
+      ];
+
+      let activeStep = 0;
+
+      const stepTitle = document.getElementById("stepTitle");
+      const stepMeter = document.getElementById("stepMeter");
+      const stepText = document.getElementById("stepText");
+      const codeBlock = document.getElementById("codeBlock");
+      const stateCurrent = document.getElementById("stateCurrent");
+      const stateOp = document.getElementById("stateOp");
+      const stateCont = document.getElementById("stateCont");
+      const stateOutput = document.getElementById("stateOutput");
+      const traceList = document.getElementById("traceList");
+      const nodeStack = document.getElementById("nodeStack");
+
+      function renderCode(activeLine) {
+        codeBlock.innerHTML = "";
+        codeLines.forEach((line, index) => {
+          const div = document.createElement("div");
+          div.className = "code-line" + (index === activeLine ? " active" : "");
+          div.textContent = line || " ";
+          codeBlock.appendChild(div);
+        });
+      }
+
+      function renderTrace() {
+        traceList.innerHTML = "";
+        steps.forEach((step, index) => {
+          const div = document.createElement("div");
+          div.className = "trace-item" + (index === activeStep ? " active" : "");
+          div.innerHTML = `<strong>${index + 1}. ${step.title.replace(/`/g, "")}</strong><span>${step.op}</span>`;
+          div.addEventListener("click", () => {
+            activeStep = index;
+            render();
+          });
+          traceList.appendChild(div);
+        });
+      }
+
+      function renderNodes(nodes) {
+        nodeStack.innerHTML = "";
+        nodes.forEach(([kind, text]) => {
+          const div = document.createElement("div");
+          div.className = `node ${kind}`;
+          div.innerHTML = `<strong>${kind}</strong><span>${text}</span>`;
+          nodeStack.appendChild(div);
+        });
+      }
+
+      function render() {
+        const step = steps[activeStep];
+        stepTitle.textContent = step.title;
+        stepMeter.textContent = `${activeStep + 1} / ${steps.length}`;
+        stepText.textContent = step.text;
+        stateCurrent.textContent = step.current;
+        stateOp.textContent = step.op;
+        stateCont.textContent = step.cont;
+        stateOutput.textContent = step.output || "пока пусто";
+        renderCode(step.line);
+        renderTrace();
+        renderNodes(step.nodes);
+      }
+
+      document.getElementById("firstStep").addEventListener("click", () => {
+        activeStep = 0;
+        render();
+      });
+      document.getElementById("prevStep").addEventListener("click", () => {
+        activeStep = Math.max(0, activeStep - 1);
+        render();
+      });
+      document.getElementById("nextStep").addEventListener("click", () => {
+        activeStep = Math.min(steps.length - 1, activeStep + 1);
+        render();
+      });
+      document.getElementById("lastStep").addEventListener("click", () => {
+        activeStep = steps.length - 1;
+        render();
+      });
+
+      render();
+    </script>
+  </body>
+</html>

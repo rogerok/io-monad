@@ -3,6 +3,7 @@ import {
   FreerFail,
   FreerFetch,
   FreerIO,
+  FreerRandom,
   FreerReadLine,
   FreerSleep,
   FreerWriteLine,
@@ -55,6 +56,14 @@ export const freerFail = <E>(error: E): FreerIO<E> =>
     } as FreerFail,
     tag: "impure",
   });
+
+export const freerRandom: FreerIO<number> = freerMk({
+  cont: freerPure,
+  op: {
+    tag: "random",
+  } as FreerRandom,
+  tag: "impure",
+});
 
 export const freerSleep = (ms: number): FreerIO<void> =>
   freerMk({

@@ -7,24 +7,24 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { IterableFreer } from "~/freer/do.js";
-import type { FreerIO, Instr } from "~/freer/instr.js";
-import type { FreerWorld } from "~/freer/run.js";
+import type { FreerIO, FreerWorld, Instr } from "../src/freer/types.ts";
 
-import { doFreer, wrap } from "~/freer/do.js";
-import { bind, pure } from "~/freer/freer.js";
+import { freerBind as bind } from "../src/freer/bind.ts";
 import {
-  fetchUrl as freerFetchUrl,
-  random as freerRandom,
-  readLine as freerReadLine,
-  writeLine as freerWriteLine,
-} from "~/freer/instr.js";
-import { runIO, runIOWithLogging } from "~/freer/run.js";
+  freerFetchUrl,
+  freerPure as pure,
+  freerRandom,
+  freerReadLine,
+  freerWriteLine,
+} from "../src/freer/constructors.ts";
+import { freerDo as doFreer } from "../src/freer/freer-do.ts";
+import { freerRun as runIO, runWithLogging as runIOWithLogging } from "../src/freer/freer-run.ts";
 
-const readLine: IterableFreer<Instr, string> = wrap(freerReadLine);
-const writeLine = (text: string): IterableFreer<Instr, void> => wrap(freerWriteLine(text));
-const fetchUrl = (url: string): IterableFreer<Instr, string> => wrap(freerFetchUrl(url));
-const random: IterableFreer<Instr, number> = wrap(freerRandom);
+// В текущей реализации отдельного wrap/IterableFreer нет: FreerIO уже iterable через freerMk.
+const readLine: FreerIO<string> = freerReadLine;
+const writeLine = (text: string): FreerIO<void> => freerWriteLine(text);
+const fetchUrl = (url: string): FreerIO<string> => freerFetchUrl(url);
+const random: FreerIO<number> = freerRandom;
 
 const makeWorld = (
   options: {
@@ -73,9 +73,7 @@ describe("E11.1 -- Freer вместо монолитного IO", () => {
   });
 
   it("bind определён один раз и не зависит от формы инструкций", async () => {
-    const program = bind(pure<Instr, number>(2), (n) =>
-      bind(pure<Instr, number>(n + 3), (m) => pure<Instr, number>(m * 10)),
-    );
+    const program = bind(pure(2), (n) => bind(pure(n + 3), (m) => pure(m * 10)));
     const world = makeWorld();
     expect(await runIO(program, world)).toBe(50);
   });
@@ -102,7 +100,7 @@ describe("E11.3 -- Logging interpreter (Layer-decorator)", () => {
 
     const lines: Array<string> = [];
     const world = makeWorld({ inputs: ["Bob"] });
-    await runIOWithLogging(program, world, (m) => lines.push(m));
+    await runIOWithLogging(program, world, (...m) => lines.push(m.join(" ")));
 
     expect(world.output).toEqual(["hi", "echo Bob"]);
     expect(lines.some((l) => l.includes("writeLine"))).toBe(true);
@@ -117,7 +115,7 @@ describe("E11.3 -- Logging interpreter (Layer-decorator)", () => {
 
     const lines: Array<string> = [];
     const world = makeWorld({ fetchMocks: { "https://api/x": "payload" } });
-    await runIOWithLogging(program, world, (m) => lines.push(m));
+    await runIOWithLogging(program, world, (...m) => lines.push(m.join(" ")));
 
     expect(world.output).toEqual(["payload"]);
     expect(lines.some((l) => l.includes("fetch https://api/x"))).toBe(true);

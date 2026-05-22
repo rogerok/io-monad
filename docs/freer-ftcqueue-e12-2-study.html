@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="tags" content="typescript, freer-monad, ftcqueue, effect-systems, performance" />
+  <title>E12.2: Freer + FTCQueue</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0f14;
+      --panel: #141b24;
+      --panel2: #1b2531;
+      --line: #304052;
+      --text: #edf3fa;
+      --soft: #c4d0dc;
+      --muted: #8b99a8;
+      --blue: #58a6ff;
+      --green: #58d68d;
+      --yellow: #e6bd5a;
+      --red: #ff7b72;
+      --code: #081018;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(88, 166, 255, 0.14), transparent 28rem),
+        linear-gradient(180deg, #0b0f14 0%, #090d12 100%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.58;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      background: rgba(11, 15, 20, 0.94);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      backdrop-filter: blur(10px);
+    }
+
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      justify-content: space-between;
+      margin: 0 auto;
+      max-width: 1120px;
+      padding: 0.75rem 1rem;
+    }
+
+    nav a {
+      color: var(--soft);
+      text-decoration: none;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    nav a:hover { border-color: var(--line); background: var(--panel2); }
+
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 2rem 1rem 4rem;
+    }
+
+    section {
+      border-top: 1px solid var(--line);
+      padding: 2rem 0;
+    }
+
+    h1, h2, h3 { line-height: 1.15; margin: 0; }
+    h1 { font-size: clamp(2rem, 5vw, 4rem); }
+    h2 { font-size: clamp(1.45rem, 2.4vw, 2.2rem); margin-bottom: 0.8rem; }
+    h3 { font-size: 1.08rem; margin-top: 1.3rem; }
+    p { margin: 0.65rem 0; }
+    a { color: #9bdcff; }
+
+    code, pre {
+      font-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    code { color: #dbeafe; }
+
+    pre {
+      background: var(--code);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: auto;
+      padding: 1rem;
+      font-size: 0.9rem;
+      margin: 0.85rem 0;
+    }
+
+    ul, ol { padding-left: 1.35rem; }
+    li { margin: 0.32rem 0; }
+
+    .hero {
+      padding: 1rem 0 2rem;
+      display: grid;
+      gap: 1rem;
+    }
+
+    .lead {
+      color: var(--soft);
+      font-size: 1.08rem;
+      max-width: 78ch;
+    }
+
+    .context, .warning, .tip {
+      border-left: 3px solid var(--blue);
+      background: rgba(20, 27, 36, 0.72);
+      padding: 0.85rem 1rem;
+      border-radius: 0 8px 8px 0;
+      color: var(--soft);
+    }
+
+    .warning { border-left-color: var(--yellow); }
+    .tip { border-left-color: var(--green); }
+
+    .grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .card {
+      background: rgba(20, 27, 36, 0.86);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .muted { color: var(--muted); }
+    .ok { color: var(--green); }
+    .bad { color: var(--red); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 0.65rem;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th { background: var(--panel2); }
+    tr:last-child td { border-bottom: 0; }
+
+    .diagram {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow: auto;
+    }
+
+    .diagram svg { max-width: 100%; height: auto; }
+
+    @media (max-width: 760px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="#context">Контекст</a>
+      <a href="#problem">Проблема</a>
+      <a href="#model">Модель</a>
+      <a href="#queue">FTCQueue</a>
+      <a href="#migration">План миграции</a>
+      <a href="#bench">Бенчмарк</a>
+      <a href="#sources">Источники</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="hero">
+      <p class="muted">tags: #typescript #freer-monad #ftcqueue #effect-systems #performance</p>
+      <h1>E12.2: Freer + FTCQueue</h1>
+      <p class="lead">
+        Учебная глава для реализации части 12.2: заменить одно продолжение в Freer на очередь продолжений,
+        чтобы left-associated цепочка <code>bind</code> строилась за линейное время и не сжигала JS-стек.
+      </p>
+      <div id="context" class="context">
+        <strong>Context.</strong> В текущем проекте Freer уже отделил ядро монады от инструкций:
+        <code>pure</code>, <code>impure</code>, <code>cont</code>, <code>bind</code>, <code>freerRun</code>.
+        E12.2 не про новые эффекты. Это замена внутреннего представления continuation chain.
+      </div>
+    </div>
+
+    <section id="overview">
+      <h2>Overview</h2>
+      <p>
+        Наивный Freer хранит в каждом <code>impure</code> одно продолжение:
+      </p>
+      <pre><code class="language-ts">type Freer&lt;I, A&gt; =
+  | { tag: "pure"; value: A }
+  | { tag: "impure"; op: I; cont: (resp: unknown) =&gt; Freer&lt;I, A&gt; };</code></pre>
+      <p>
+        Когда вызывается <code>bind(m, f)</code>, он должен приклеить <code>f</code> после всего уже
+        накопленного вычисления. В наивной версии это делается рекурсией: если <code>m</code> — <code>impure</code>,
+        новый <code>cont</code> вызывает старый <code>cont</code>, а затем снова <code>bind</code>.
+      </p>
+      <p>
+        FTCQueue меняет одну вещь: вместо одного <code>cont</code> внутри <code>impure</code> лежит очередь
+        продолжений. Новый <code>bind</code> больше не обходит дерево, а добавляет функцию в хвост очереди.
+      </p>
+
+      <div class="grid">
+        <div class="card">
+          <h3>До</h3>
+          <pre><code class="language-ts">Impure(op, cont)</code></pre>
+          <p class="bad">bind перестраивает continuation рекурсивно.</p>
+        </div>
+        <div class="card">
+          <h3>После</h3>
+          <pre><code class="language-ts">Impure(op, queue)</code></pre>
+          <p class="ok">bind добавляет continuation в очередь.</p>
+        </div>
+      </div>
+
+      <p><strong>Takeaway.</strong> Цель E12.2 — не “ускорить функцию”, а изменить структуру данных, в которой хранится будущая работа.</p>
+    </section>
+
+    <section id="problem">
+      <h2>Почему появляется O(N²)</h2>
+      <p>
+        Оператор <code>bind</code> похож на append, который проходит левый аргумент. Если строить цепочку слева,
+        каждый следующий <code>bind</code> снова проходит всё накопленное слева.
+      </p>
+      <pre><code class="language-ts">let prog = pure(0);
+for (let i = 0; i &lt; N; i++) {
+  prog = bind(prog, (x) =&gt; pure(x + 1));
+}</code></pre>
+      <p>
+        На шаге <code>k</code> структура уже содержит примерно <code>k</code> звеньев. Стоимость построения:
+        <code>1 + 2 + ... + N = O(N²)</code>. Для маленьких программ это шум. Для <code>traverse</code>,
+        генераторов и больших циклов это становится архитектурным дефектом.
+      </p>
+
+      <div class="diagram">
+        <svg width="880" height="250" role="img" aria-label="Left associated bind versus queue">
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L8,3 z" fill="#8b99a8"></path>
+            </marker>
+          </defs>
+          <text x="20" y="30" fill="#edf3fa" font-size="16">Left-associated bind</text>
+          <rect x="20" y="55" width="90" height="36" rx="6" fill="#1b2531" stroke="#304052"></rect>
+          <text x="43" y="78" fill="#edf3fa" font-size="13">prog</text>
+          <line x1="112" y1="73" x2="170" y2="73" stroke="#8b99a8" marker-end="url(#arrow)"></line>
+          <rect x="175" y="55" width="90" height="36" rx="6" fill="#1b2531" stroke="#304052"></rect>
+          <text x="201" y="78" fill="#edf3fa" font-size="13">cont</text>
+          <line x1="267" y1="73" x2="325" y2="73" stroke="#8b99a8" marker-end="url(#arrow)"></line>
+          <rect x="330" y="55" width="90" height="36" rx="6" fill="#1b2531" stroke="#304052"></rect>
+          <text x="356" y="78" fill="#edf3fa" font-size="13">cont</text>
+          <line x1="422" y1="73" x2="480" y2="73" stroke="#8b99a8" marker-end="url(#arrow)"></line>
+          <rect x="485" y="55" width="90" height="36" rx="6" fill="#1b2531" stroke="#304052"></rect>
+          <text x="509" y="78" fill="#edf3fa" font-size="13">pure</text>
+          <path d="M65,105 C160,170 350,170 535,105" fill="none" stroke="#ff7b72" stroke-width="2"></path>
+          <text x="160" y="188" fill="#ffb3ad" font-size="13">новый bind проходит накопленный путь</text>
+
+          <text x="20" y="225" fill="#edf3fa" font-size="16">FTCQueue: append в хвост очереди, обход переносится в interpreter</text>
+          <rect x="535" y="190" width="70" height="32" rx="6" fill="#14221c" stroke="#58d68d"></rect>
+          <text x="552" y="211" fill="#edf3fa" font-size="12">k1</text>
+          <rect x="610" y="190" width="70" height="32" rx="6" fill="#14221c" stroke="#58d68d"></rect>
+          <text x="627" y="211" fill="#edf3fa" font-size="12">k2</text>
+          <rect x="685" y="190" width="70" height="32" rx="6" fill="#14221c" stroke="#58d68d"></rect>
+          <text x="702" y="211" fill="#edf3fa" font-size="12">k3</text>
+          <line x1="760" y1="206" x2="820" y2="206" stroke="#58d68d" marker-end="url(#arrow)"></line>
+          <text x="600" y="174" fill="#b7f7ce" font-size="13">новый bind = snoc(queue, f)</text>
+        </svg>
+      </div>
+
+      <p><strong>Takeaway.</strong> Проблема не в том, что <code>bind</code> “медленный”. Проблема в том, что он выполняет structural traversal при каждом добавлении продолжения.</p>
+    </section>
+
+    <section id="model">
+      <h2>Новая модель Freer</h2>
+      <p>
+        В Haskell <code>freer-simple</code> использует форму:
+      </p>
+      <pre><code class="language-haskell">data Eff effs a
+  = Val a
+  | forall b. E (Union effs b) (Arrs effs b a)
+
+type Arr effs a b = a -&gt; Eff effs b
+type Arrs effs a b = FTCQueue (Eff effs) a b</code></pre>
+      <p>
+        Для TypeScript без HKT и GADT можно держать ту же инженерную идею, но ослабить типы внутри очереди до
+        <code>unknown</code>. Важно сохранить внешний API: <code>FreerIO&lt;A&gt;</code>,
+        <code>freerPure</code>, smart constructors, <code>freerRun</code>, <code>freerDo</code>.
+      </p>
+
+      <h3>Целевая форма типов</h3>
+      <pre><code class="language-ts">type Cont&lt;I, A, B&gt; = (a: A) =&gt; Freer&lt;I, B&gt;;
+
+type FTCQueue&lt;I, A, B&gt; =
+  | { tag: "leaf"; f: Cont&lt;I, A, B&gt; }
+  | { tag: "node"; left: FTCQueue&lt;I, A, unknown&gt;; right: FTCQueue&lt;I, unknown, B&gt; };
+
+type Freer&lt;I, A&gt; =
+  | { tag: "pure"; value: A }
+  | { tag: "impure"; op: I; queue: FTCQueue&lt;I, unknown, A&gt; }
+  | { tag: "suspend"; thunk: () =&gt; Freer&lt;I, A&gt; };</code></pre>
+
+      <div class="warning">
+        <strong>Не копируй это как финальный код вслепую.</strong> Это форма, которую надо адаптировать под текущие
+        <code>src/freer/types.ts</code>, <code>freerMk</code> и <code>Symbol.iterator</code>. Домашняя работа здесь —
+        провести миграцию, не сломав внешний смысл.
+      </div>
+
+      <h3>Что происходит с smart constructors</h3>
+      <p>
+        Раньше конструктор инструкции делал <code>cont: freerPure</code>. После перехода на очередь он должен
+        создавать очередь из одного продолжения:
+      </p>
+      <pre><code class="language-ts">// было: cont: freerPure
+// стало по смыслу: queue: singleton(freerPure)</code></pre>
+      <p>
+        Для <code>writeLine</code>, <code>sleep</code> и других <code>void</code>-эффектов continuation всё равно
+        принимает ответ инструкции. Просто этот ответ не используется.
+      </p>
+
+      <p><strong>Takeaway.</strong> <code>Impure</code> теперь хранит “текущую инструкцию + весь хвост программы”, а не “текущую инструкцию + одну функцию”.</p>
+    </section>
+
+    <section id="queue">
+      <h2>FTCQueue: минимальная структура</h2>
+      <p>
+        FTCQueue расшифровывают как Fast Type-aligned Catenable Queue. Для учебной версии нужны три операции:
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Операция</th>
+            <th>Смысл</th>
+            <th>Стоимость</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>singleton(f)</code></td>
+            <td>очередь из одного continuation</td>
+            <td>O(1)</td>
+          </tr>
+          <tr>
+            <td><code>append(q1, q2)</code> или <code>snoc(q, f)</code></td>
+            <td>добавить continuation без обхода старой программы</td>
+            <td>O(1)</td>
+          </tr>
+          <tr>
+            <td><code>viewL(q)</code></td>
+            <td>вынуть первый continuation и остаток очереди</td>
+            <td>амортизированная O(1)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Почему не обычный массив</h3>
+      <p>
+        Для учебного JS-кода массив кажется проще, но он маскирует идею. Если делать <code>push</code>, добавление
+        дешёвое, но <code>shift</code> в JS-массиве обычно двигает элементы. Если хранить индекс головы, можно получить
+        нормальную практическую структуру, но потеряется связь с paper-а. FTCQueue показывает именно algebraic решение:
+        очередь как дерево композиций.
+      </p>
+
+      <h3>Учебный ViewL</h3>
+      <pre><code class="language-ts">type ViewL&lt;I, A, B&gt; =
+  | { tag: "one"; f: Cont&lt;I, A, B&gt; }
+  | { tag: "cons"; head: Cont&lt;I, A, unknown&gt;; tail: FTCQueue&lt;I, unknown, B&gt; };</code></pre>
+      <p>
+        <code>viewL</code> должен вернуть первый continuation. Если очередь — один <code>leaf</code>, остатка нет.
+        Если очередь — <code>node(left, right)</code>, нужно найти голову в <code>left</code>, а остаток склеить
+        обратно с <code>right</code>.
+      </p>
+
+      <div class="tip">
+        <strong>Практический критерий.</strong> Если твой <code>bind</code> вызывает себя рекурсивно по старому
+        <code>m.cont(resp)</code>, ты ещё не решил E12.2. После миграции <code>bind</code> для <code>impure</code>
+        должен только добавить функцию в очередь.
+      </div>
+
+      <p><strong>Takeaway.</strong> Очередь нужна не ради красоты типов, а чтобы разнести “добавить продолжение” и “исполнить следующее продолжение”.</p>
+    </section>
+
+    <section id="migration">
+      <h2>План миграции для текущего проекта</h2>
+      <p>
+        Делай миграцию маленькими шагами. Не переписывай smart constructors и interpreter одновременно.
+      </p>
+
+      <h3>Шаг 1. Добавить модуль очереди</h3>
+      <p>
+        Создай отдельный модуль, например <code>src/freer/ftc-queue.ts</code>. Он не должен импортировать
+        конкретные инструкции <code>ReadLine</code>, <code>Fetch</code>, <code>Random</code>. Максимум —
+        общий тип <code>Freer</code> или функцию-continuation.
+      </p>
+      <pre><code class="language-ts">// форма API, не готовое решение:
+singleton(f)
+append(left, right)
+snoc(queue, f)
+viewL(queue)</code></pre>
+
+      <h3>Шаг 2. Поменять <code>FreerImpure</code></h3>
+      <p>
+        В <code>src/freer/types.ts</code> заменить поле <code>cont</code> на поле очереди. Лучше не называть поле
+        <code>cont</code>, чтобы TypeScript и глаза не смешивали старую и новую модель.
+      </p>
+
+      <h3>Шаг 3. Обновить smart constructors</h3>
+      <p>
+        Каждый конструктор <code>impure</code> должен создавать очередь из одного continuation. Например,
+        <code>readLine</code> отвечает строкой, значит первый continuation превращает эту строку в
+        <code>pure(string)</code>. <code>writeLine</code> отвечает <code>void</code>, значит continuation возвращает
+        <code>pure(undefined)</code>.
+      </p>
+
+      <h3>Шаг 4. Переписать <code>freerBind</code></h3>
+      <p>
+        Старый recursive case:
+      </p>
+      <pre><code class="language-ts">case "impure":
+  return impure(op, (resp) =&gt; bind(cont(resp), f));</code></pre>
+      <p>
+        Новый смысл:
+      </p>
+      <pre><code class="language-ts">case "impure":
+  return impure(op, snoc(queue, f));</code></pre>
+      <p>
+        Для <code>pure</code> всё остаётся: <code>f(value)</code>. Для <code>suspend</code> можно сохранить ленивую
+        границу: <code>suspend(() =&gt; bind(thunk(), f))</code>. Это не главная цель E12.2, но сохраняет свежий generator.
+      </p>
+
+      <h3>Шаг 5. Переписать interpreter</h3>
+      <p>
+        После выполнения инструкции interpreter получает <code>resp</code>. Раньше он делал
+        <code>current = current.cont(resp)</code>. Теперь он должен вынуть голову очереди и применить её к ответу.
+      </p>
+      <pre><code class="language-ts">// форма шага:
+const next = applyQueue(current.queue, resp);
+current = next;</code></pre>
+      <p>
+        Если <code>head(resp)</code> вернул <code>pure</code>, нужно либо продолжить хвост очереди с этим значением,
+        либо завершить, если хвоста нет. Если вернул <code>impure</code>, хвост старой очереди надо присоединить
+        к очереди нового <code>impure</code>. Это и есть ключевой момент “reflection without remorse”.
+      </p>
+
+      <h3>Шаг 6. Проверить E11</h3>
+      <p>
+        После миграции должны остаться зелёными:
+      </p>
+      <pre><code class="language-bash">pnpm exec vitest run test-vasya/exercises-part11.test.ts
+pnpm exec vitest run test-vasya/monad-laws.test.ts
+pnpm exec vitest run test-vasya/integration.test.ts</code></pre>
+
+      <p><strong>Takeaway.</strong> E12.2 считается сделанным не когда код “похож на очередь”, а когда старое поведение Freer сохранено, а left-associated benchmark перестал расти квадратично.</p>
+    </section>
+
+    <section id="bench">
+      <h2>Бенчмарк для подтверждения O(N)</h2>
+      <p>
+        Бенчмарк должен измерять построение left-associated цепочки. Если включить в замер реальные эффекты,
+        шум interpreter-а может скрыть проблему.
+      </p>
+      <pre><code class="language-ts">function buildLeftAssociated(n: number) {
+  let prog = freerPure(0);
+  for (let i = 0; i &lt; n; i++) {
+    prog = freerBind(prog, (x) =&gt; freerPure(x + 1));
+  }
+  return prog;
+}</code></pre>
+      <p>
+        Для наивного Freer рост должен быть близок к квадратичному или упереться в stack overflow. Для FTCQueue
+        построение должно стать примерно линейным. Не жди идеального графика: V8, GC и JIT будут шуметь.
+        Важна форма роста между 1k, 10k и 100k.
+      </p>
+
+      <h3>Vitest-форма проверки</h3>
+      <pre><code class="language-ts">import { describe, expect, it } from "vitest";
+
+describe("E12.2 benchmark shape", () =&gt; {
+  it("builds a left-associated chain without stack overflow", () =&gt; {
+    const p = buildLeftAssociated(100_000);
+    expect(p).toBeDefined();
+  });
+});</code></pre>
+      <p>
+        Отдельный benchmark-скрипт может печатать таблицу. Unit-тест не должен быть хрупким по миллисекундам:
+        CI и локальная машина дадут разные числа.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>N</th>
+            <th>Наивный Freer</th>
+            <th>Freer + FTCQueue</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1k</td>
+            <td>обычно проходит</td>
+            <td>проходит</td>
+          </tr>
+          <tr>
+            <td>10k</td>
+            <td>заметно медленнее или stack pressure</td>
+            <td>проходит с умеренным ростом</td>
+          </tr>
+          <tr>
+            <td>100k</td>
+            <td>часто stack overflow / очень долго</td>
+            <td>строится без рекурсивного обхода цепочки</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p><strong>Takeaway.</strong> Бенчмарк должен ловить не “быстро/медленно”, а смену класса сложности.</p>
+    </section>
+
+    <section id="pitfalls">
+      <h2>Типичные ошибки</h2>
+      <ul>
+        <li><strong>Оставить рекурсивный <code>bind</code> в <code>impure</code>.</strong> Тогда очередь есть в типах, но не в алгоритме.</li>
+        <li><strong>Использовать <code>Array.shift()</code> как очередь.</strong> Это может вернуть линейную стоимость на извлечение головы.</li>
+        <li><strong>Забыть склеить хвосты.</strong> Если continuation вернул новый <code>impure</code>, старый хвост очереди нельзя потерять.</li>
+        <li><strong>Сломать <code>suspend</code>.</strong> <code>doFreer</code> всё ещё должен создавать свежий generator на каждый run.</li>
+        <li><strong>Бенчмаркать только <code>pure</code>-цепочку.</strong> Она может схлопываться слишком рано. Проверь и pure-chain, и цепочку через хотя бы одну suspended/impure границу.</li>
+      </ul>
+    </section>
+
+    <section id="research-brief">
+      <h2>Research brief</h2>
+      <h3>Scope</h3>
+      <p>
+        Узкая тема: как заменить continuation в учебном Freer на FTCQueue и что должен делать interpreter.
+        Вне scope: полноценные open unions, Effect-TS runtime, конкуренция fibers, typed error channel.
+      </p>
+
+      <h3>Prerequisites</h3>
+      <ul>
+        <li>Текущая часть 11: <code>Freer&lt;I, A&gt;</code>, <code>impure</code>, <code>op</code>, <code>cont</code>.</li>
+        <li>Monad laws: особенно associativity.</li>
+        <li>Базовая амортизированная сложность структур данных.</li>
+        <li>TypeScript generics и готовность локально использовать <code>unknown</code> внутри unsafe boundary.</li>
+      </ul>
+
+      <h3>Рекомендуемый порядок чтения</h3>
+      <ol>
+        <li>Перечитай <code>docs/freer-part11-explainer.html</code>: восстанови текущую модель Freer.</li>
+        <li>Прочитай abstract и Sections 1-2 paper-а “Reflection without Remorse”: там объясняется left-associated bind как общий structural problem.</li>
+        <li>Посмотри Haddock <code>freer-simple</code>: <code>Eff</code> хранит <code>Union effs b</code> и <code>Arrs effs b a</code>, где <code>Arrs</code> — <code>FTCQueue</code>.</li>
+        <li>Вернись в проект и нарисуй переход: <code>cont</code> → <code>queue</code>, <code>current.cont(resp)</code> → <code>applyQueue(queue, resp)</code>.</li>
+      </ol>
+    </section>
+
+    <section id="sources">
+      <h2>Sources</h2>
+      <ul>
+        <li>
+          <a href="https://okmij.org/ftp/Haskell/zseq.pdf">Atze van der Ploeg, Oleg Kiselyov — “Reflection without Remorse”</a>.
+          Primary source. Explains the association problem, CPS limits, and type-aligned sequences.
+        </li>
+        <li>
+          <a href="https://okmij.org/ftp/Haskell/extensible/more.pdf">Oleg Kiselyov, Hiromi Ishii — “Freer Monads, More Extensible Effects”</a>.
+          Primary source for Freer/extensible effects; explains why exposed continuations enable efficient representation.
+        </li>
+        <li>
+          <a href="https://hackage.haskell.org/package/freer-simple-1.2.1.2/docs/Control-Monad-Freer-Internal.html">freer-simple: Control.Monad.Freer.Internal</a>.
+          Practical reference: <code>Eff</code>, <code>Arr</code>, <code>Arrs</code>, <code>qApp</code>, <code>qComp</code>.
+        </li>
+        <li>
+          <a href="https://hackage.haskell.org/package/freer-simple-1.2.1.2/docs/doc-index.html">freer-simple Haddock index</a>.
+          Useful for locating <code>Data.FTCQueue</code>, <code>snoc</code>, <code>tviewl</code>, <code>FTCQueue</code>.
+        </li>
+        <li>
+          <a href="https://effect-ts.github.io/effect/effect/Effect.ts.html#flatMap">Effect docs: flatMap</a>.
+          Modern TypeScript effect-system reference. Use conceptually, not as a direct implementation guide.
+        </li>
+      </ul>
+    </section>
+
+    <section id="related">
+      <h2>Related Topics</h2>
+      <ul>
+        <li><a href="./freer-part11-explainer.html">Freer IO: поток выполнения, bind, cont и interpreter</a></li>
+        <li><a href="./do-io-suspend-explainer.html">doIO + suspend: свежий generator и stack-safety boundary</a></li>
+        <li><a href="./do-io-symbol-iterator-session-brief.md">Symbol.iterator для do-notation</a></li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

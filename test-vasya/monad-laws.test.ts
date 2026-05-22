@@ -10,17 +10,20 @@
  * наблюдаемое поведение: финальный результат + последовательность side effect-ов.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import { bind as freerBind, pure as freerPure } from '~/freer/freer.js';
-import type * as Freer from '~/freer/freer.js';
-import { bind, pure, andThen, writeLine } from '~/io.js';
-import type { IO } from '~/io.js';
-import { runIO } from '~/run.js';
-import { testWorld } from '~/world.js';
+import type { FreerIO } from "../src/freer/types.ts";
+import type { IO } from "../src/types.ts";
 
-describe('IO monad laws', () => {
-  it('left identity: bind(pure(a), f) ~ f(a)', async () => {
+import { andThen, bind } from "../src/combinators.ts";
+import { pure, writeLine } from "../src/ constructors.ts";
+import { freerBind } from "../src/freer/bind.ts";
+import { freerPure } from "../src/freer/constructors.ts";
+import { runIO } from "../src/run-io.ts";
+import { testWorld } from "../src/world.ts";
+
+describe("IO monad laws", () => {
+  it("left identity: bind(pure(a), f) ~ f(a)", async () => {
     const f = (n: number): IO<string> => pure(`got ${n}`);
 
     const lhs = bind(pure(7), f);
@@ -29,8 +32,8 @@ describe('IO monad laws', () => {
     expect(await runIO(lhs, testWorld())).toBe(await runIO(rhs, testWorld()));
   });
 
-  it('right identity: bind(io, pure) ~ io', async () => {
-    const io = andThen(writeLine('side'), pure(42));
+  it("right identity: bind(io, pure) ~ io", async () => {
+    const io = andThen(writeLine("side"), pure(42));
     const lhs = bind(io, pure);
 
     const w1 = testWorld();
@@ -43,11 +46,11 @@ describe('IO monad laws', () => {
     expect(w1.output).toEqual(w2.output);
   });
 
-  it('associativity: bind(bind(io, f), g) ~ bind(io, x => bind(f(x), g))', async () => {
+  it("associativity: bind(bind(io, f), g) ~ bind(io, x => bind(f(x), g))", async () => {
     const f = (n: number): IO<number> => pure(n * 2);
     const g = (n: number): IO<string> => pure(`v=${n}`);
 
-    const io: IO<number> = andThen(writeLine('start'), pure(3));
+    const io: IO<number> = andThen(writeLine("start"), pure(3));
 
     const lhs = bind(bind(io, f), g);
     const rhs = bind(io, (x) => bind(f(x), g));
@@ -59,34 +62,34 @@ describe('IO monad laws', () => {
   });
 });
 
-describe('Freer monad laws', () => {
-  it('left identity', () => {
-    const f = (n: number) => freerPure<never, string>(`got ${n}`);
-    const lhs = freerBind(freerPure<never, number>(5), f);
+describe("Freer monad laws", () => {
+  it("left identity", () => {
+    const f = (n: number) => freerPure(`got ${n}`);
+    const lhs = freerBind(freerPure(5), f);
     const rhs = f(5);
-    expect(extractPure(lhs)).toBe('got 5');
-    expect(extractPure(rhs)).toBe('got 5');
+    expect(extractPure(lhs)).toBe("got 5");
+    expect(extractPure(rhs)).toBe("got 5");
   });
 
-  it('right identity', () => {
-    const io: Freer.Freer<never, number> = freerPure<never, number>(11);
+  it("right identity", () => {
+    const io: FreerIO<number> = freerPure(11);
     const lhs = freerBind(io, freerPure);
     expect(extractPure(lhs)).toBe(11);
     expect(extractPure(io)).toBe(11);
   });
 
-  it('associativity', () => {
-    const f = (n: number) => freerPure<never, number>(n * 2);
-    const g = (n: number) => freerPure<never, string>(`v=${n}`);
-    const io = freerPure<never, number>(3);
+  it("associativity", () => {
+    const f = (n: number) => freerPure(n * 2);
+    const g = (n: number) => freerPure(`v=${n}`);
+    const io = freerPure(3);
     const lhs = freerBind(freerBind(io, f), g);
     const rhs = freerBind(io, (x) => freerBind(f(x), g));
-    expect(extractPure(lhs)).toBe('v=6');
-    expect(extractPure(rhs)).toBe('v=6');
+    expect(extractPure(lhs)).toBe("v=6");
+    expect(extractPure(rhs)).toBe("v=6");
   });
 });
 
-function extractPure<I, A>(m: Freer.Freer<I, A>): A {
-  if (m.tag !== 'pure') throw new Error('expected Pure for law-checking shortcut');
+function extractPure<A>(m: FreerIO<A>): A {
+  if (m.tag !== "pure") throw new Error("expected Pure for law-checking shortcut");
   return m.value;
 }

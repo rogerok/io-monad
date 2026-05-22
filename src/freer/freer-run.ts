@@ -1,9 +1,10 @@
-import { World } from "../world.ts";
-import { FreerIO } from "./types.ts";
+import { exhaustive } from "../utils.ts";
+import { FreerIO, FreerWorld } from "./types.ts";
 
-export const freerRun = async <I, A>(freer: FreerIO<I, A>, world: World): Promise<A> => {
-  let current: FreerIO<I, A> = freer;
+export const freerRun = async <A>(freer: FreerIO<A>, world: FreerWorld): Promise<A> => {
+  let current: FreerIO<A> = freer;
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   while (true) {
     if (current.tag === "pure") {
       return current.value;
@@ -26,7 +27,64 @@ export const freerRun = async <I, A>(freer: FreerIO<I, A>, world: World): Promis
       case "writeLine": {
         await world.writeLine(op.text);
         current = current.cont();
+        break;
       }
+
+      case "fetch": {
+        const v = await world.fetch(op.url, op.options);
+        current = current.cont(v);
+        break;
+      }
+
+      case "random": {
+        current = current.cont(world.random());
+        break;
+      }
+
+      case "sleep": {
+        await world.sleep(op.ms);
+        current = current.cont();
+        break;
+      }
+
+      case "fail": {
+        throw op.error;
+      }
+
+      default:
+        return exhaustive(op);
     }
   }
+};
+
+export const runWithLogging = async <A>(
+  freer: FreerIO<A>,
+  world: FreerWorld,
+  log: (...args: any[]) => void,
+): Promise<A> => {
+  const decoratedWorld: FreerWorld = {
+    fetch: async (url, options) => {
+      log("[freer]: fetch", url);
+      return world.fetch(url, options);
+    },
+    random: () => {
+      const random = Math.random();
+      log(`[freer]: random with`, random);
+      return random;
+    },
+    readLine: async () => {
+      log(`[freer]: readLine`);
+      return world.readLine();
+    },
+    sleep: (ms) => {
+      log(`[freer]: sleep`, ms);
+      return world.sleep(ms);
+    },
+    writeLine: async (text) => {
+      log(`[freer]: writeLine `, text);
+      return world.writeLine(text);
+    },
+  };
+
+  return freerRun(freer, decoratedWorld);
 };

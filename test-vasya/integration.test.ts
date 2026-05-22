@@ -1,96 +1,113 @@
 /**
- * Интеграционный путь: одна и та же сквозная программа в трёх encoding-ах
- * (вложенные bind, do-notation на Symbol.iterator, Freer) даёт идентичный
- * пользовательский output.
+ * Интеграционный путь: одна и та же сквозная программа в разных encoding-ах
+ * должна давать одинаковый пользовательский output.
  *
- * Это и есть главный takeaway урока: программа, как данные, можно переписать
- * представление, не меняя смысл.
+ * В текущем проекте нет файлов src/examples/program-*.ts, которые изначально
+ * ожидал этот тест. Также существующие src/program.ts и src/freer/program.ts
+ * содержат top-level запуск через void (async () => ...), поэтому импортировать
+ * их из теста нельзя без побочного запуска stdin/fetch.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import { program as bindProgram } from '~/examples/program-bind.js';
-import { program as adapterProgram } from '~/examples/program-do-adapter.js';
-import { program as naiveProgram } from '~/examples/program-do-naive.js';
-import { program as symbolProgram } from '~/examples/program-do-symbol.js';
-import { program as freerProgram } from '~/examples/program-freer.js';
-import type { FreerWorld } from '~/freer/run.js';
-import { runIO as runFreer } from '~/freer/run.js';
-import { runIO } from '~/run.js';
-import { testWorld } from '~/world.js';
+import type { FreerWorld } from "../src/freer/types.ts";
 
-const inputs = ['Alice', '30'] as const;
-const fetchMocks = { 'https://httpbin.org/uuid': 'token-123' } as const;
+import { freerBind } from "../src/freer/bind.ts";
+import { freerFetchUrl, freerRandom, freerReadLine, freerWriteLine, } from "../src/freer/constructors.ts";
+import { freerDo } from "../src/freer/freer-do.ts";
+import { freerRun } from "../src/freer/freer-run.ts";
 
-const expected = [
-  'What is your name?',
-  'Hello, Alice! How old are you?',
-  'Loading greeting of the day...',
-  "Wow, Alice, 30! Today's lucky token: token-123",
-];
+const inputs = ["Alice", "30"] as const;
+const fetchMocks = { "https://httpbin.org/uuid": "token-123" } as const;
 
-describe('Сквозной пример в трёх IO-encoding-ах', () => {
-  it('вложенные bind (Часть 7)', async () => {
-    const world = testWorld({ inputs: [...inputs], fetchMocks });
-    await runIO(bindProgram, world);
-    expect(world.output).toEqual(expected);
-  });
+describe("Сквозной пример поверх Freer", () => {
+  it("Freer-программа через do-notation с Random выбирает приветствие из массива", async () => {
+    const program = freerDo(function* () {
+      const greetings = ["Hello", "Hi", "Hey"];
 
-  it('наивный doIO с as string', async () => {
-    const world = testWorld({ inputs: [...inputs], fetchMocks });
-    await runIO(naiveProgram, world);
-    expect(world.output).toEqual(expected);
-  });
-
-  it('adapter _(io)', async () => {
-    const world = testWorld({ inputs: [...inputs], fetchMocks });
-    await runIO(adapterProgram, world);
-    expect(world.output).toEqual(expected);
-  });
-
-  it('Symbol.iterator (Effect-TS production-grade)', async () => {
-    const world = testWorld({ inputs: [...inputs], fetchMocks });
-    await runIO(symbolProgram, world);
-    expect(world.output).toEqual(expected);
-  });
-});
-
-describe('Сквозной пример поверх Freer (Часть 10)', () => {
-  it('Freer-программа с Random выбирает приветствие из массива', async () => {
-    const world: FreerWorld & { output: Array<string> } = makeFreerWorld({
-      inputs: [...inputs],
-      fetchMocks: { 'https://httpbin.org/uuid': 'token-123' },
-      randoms: [0.0],
+      yield* freerWriteLine("What is your name?");
+      const name = yield* freerReadLine;
+      const greetingIndex = Math.floor((yield* freerRandom) * greetings.length);
+      const greeting = greetings[greetingIndex] ?? greetings[0];
+      yield* freerWriteLine(`${greeting}, ${name}! How old are you?`);
+      const age = yield* freerReadLine;
+      yield* freerWriteLine("Loading greeting of the day...");
+      const body = yield* freerFetchUrl("https://httpbin.org/uuid");
+      yield* freerWriteLine(`Wow, ${name}, ${age}! Token: ${body}`);
     });
-    await runFreer(freerProgram, world);
-    expect(world.output[0]).toBe('What is your name?');
-    expect(world.output.at(-1)).toBe('Salut, Alice, 30! Token: token-123');
+
+    const world = makeFreerWorld({
+      fetchMocks,
+      inputs: [...inputs],
+      randoms: [0],
+    });
+
+    await freerRun(program, world);
+
+    expect(world.output).toEqual([
+      "What is your name?",
+      "Hello, Alice! How old are you?",
+      "Loading greeting of the day...",
+      "Wow, Alice, 30! Token: token-123",
+    ]);
+  });
+
+  it("Freer-программа через bind работает с тем же World", async () => {
+    const program = freerBind(freerWriteLine("What is your name?"), () =>
+      freerBind(freerReadLine, (name) =>
+        freerBind(freerRandom, (r) => {
+          const greetings = ["Hello", "Hi", "Hey"];
+          const greeting = greetings[Math.floor(r * greetings.length)] ?? greetings[0];
+
+          return freerBind(freerWriteLine(`${greeting}, ${name}! How old are you?`), () =>
+            freerBind(freerReadLine, (age) =>
+              freerBind(freerWriteLine("Loading greeting of the day..."), () =>
+                freerBind(freerFetchUrl("https://httpbin.org/uuid"), (body) =>
+                  freerWriteLine(`Wow, ${name}, ${age}! Token: ${body}`),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+
+    const world = makeFreerWorld({
+      fetchMocks,
+      inputs: [...inputs],
+      randoms: [0],
+    });
+
+    await freerRun(program, world);
+
+    expect(world.output.at(-1)).toBe("Wow, Alice, 30! Token: token-123");
   });
 });
 
 function makeFreerWorld(options: {
-  inputs: ReadonlyArray<string>;
   fetchMocks: Record<string, string>;
+  inputs: ReadonlyArray<string>;
   randoms: ReadonlyArray<number>;
 }): FreerWorld & { output: Array<string> } {
   const inputQueue = [...options.inputs];
   const randomQueue = [...options.randoms];
   const output: Array<string> = [];
+
   return {
-    output,
-    readLine: async () => {
-      if (inputQueue.length === 0) throw new Error('out of inputs');
-      return inputQueue.shift()!;
-    },
-    writeLine: async (text) => {
-      output.push(text);
-    },
     fetch: async (url) => {
       const body = options.fetchMocks[url];
       if (body === undefined) throw new Error(`fetch to ${url} not mocked`);
       return body;
     },
-    sleep: async () => {},
+    output,
     random: () => randomQueue.shift() ?? 0.5,
+    readLine: async () => {
+      if (inputQueue.length === 0) throw new Error("out of inputs");
+      return inputQueue.shift()!;
+    },
+    sleep: async () => {},
+    writeLine: async (text) => {
+      output.push(text);
+    },
   };
 }

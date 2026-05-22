@@ -1,4 +1,4 @@
-import { mkFreer } from "./mkFreer.ts";
+import { freerMk } from "./freer-mk.ts";
 import {
   FreerFail,
   FreerFetch,
@@ -9,12 +9,12 @@ import {
 } from "./types.ts";
 
 export const freerPure = <A>(value: A): FreerIO<A> =>
-  mkFreer({
+  freerMk({
     tag: "pure",
     value,
   });
 
-export const freerReadLine: FreerIO<string> = mkFreer({
+export const freerReadLine: FreerIO<string> = freerMk({
   cont: freerPure,
   op: {
     tag: "readLine",
@@ -23,7 +23,7 @@ export const freerReadLine: FreerIO<string> = mkFreer({
 });
 
 export const freerWriteLine = (text: string): FreerIO<void> =>
-  mkFreer({
+  freerMk({
     cont: () => freerPure(undefined),
     op: {
       tag: "writeLine",
@@ -33,7 +33,7 @@ export const freerWriteLine = (text: string): FreerIO<void> =>
   });
 
 export const freerFetchUrl = (url: string, options?: RequestInit): FreerIO<string> =>
-  mkFreer({
+  freerMk({
     cont: (body: string) => freerPure(body),
     op: {
       options,
@@ -44,7 +44,7 @@ export const freerFetchUrl = (url: string, options?: RequestInit): FreerIO<strin
   });
 
 export const freerFail = <E>(error: E): FreerIO<E> =>
-  mkFreer({
+  freerMk({
     // Maybe need to rewrite
     cont: (e) => {
       throw e;
@@ -57,7 +57,7 @@ export const freerFail = <E>(error: E): FreerIO<E> =>
   });
 
 export const freerSleep = (ms: number): FreerIO<void> =>
-  mkFreer({
+  freerMk({
     cont: () => freerPure(undefined),
     op: {
       ms,
@@ -67,7 +67,7 @@ export const freerSleep = (ms: number): FreerIO<void> =>
   });
 
 export const freerSuspend = <A>(thunk: () => FreerIO<A>): FreerIO<A> =>
-  mkFreer({
+  freerMk({
     tag: "suspend",
     thunk,
   });

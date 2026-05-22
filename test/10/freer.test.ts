@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 
 // Part 10 introduces Freer<Instr, A>. The student may export:
 //   - Freer (type)
-//   - runFreer(program, world): Promise<A>
+//   - freerRun(program, world): Promise<A>
 //   - pure, readLine, writeLine, fetchUrl (re-using or re-implementing)
 // We import dynamically so earlier test still run if Part 10 isn't done.
 
 async function loadFreer() {
   const mod = (await import("../../src/index.ts")) as Record<string, unknown>;
-  if (!("runFreer" in mod)) return null;
+  if (!("freerRun" in mod)) return null;
   return mod as {
     myProgram: unknown;
     readLine: unknown;
@@ -28,7 +28,7 @@ async function loadFreer() {
 }
 
 describe("E10.1 — Freer: bind does not change when a new effect is added", () => {
-  it("basic program runs correctly via runFreer", async () => {
+  it("basic program runs correctly via freerRun", async () => {
     const freer = await loadFreer();
     if (!freer) return;
 
@@ -39,7 +39,7 @@ describe("E10.1 — Freer: bind does not change when a new effect is added", () 
     expect(world.output).toEqual(["hello"]);
   });
 
-  it("myProgram still works through Freer runFreer", async () => {
+  it("myProgram still works through Freer freerRun", async () => {
     const freer = await loadFreer();
     if (!freer) return;
     const { myProgram, runFreer, testWorld } = freer;
@@ -58,7 +58,7 @@ describe("E10.2 ★ — adding Random effect without touching bind", () => {
     const freer = await loadFreer();
     if (!freer) return;
     const mod = freer as Record<string, unknown>;
-    if (!("random" in mod) || !("runFreer" in mod)) return;
+    if (!("random" in mod) || !("freerRun" in mod)) return;
 
     const random = mod["random"];
     const { bind, runFreer, testWorld, writeLine } = freer;

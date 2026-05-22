@@ -1,7 +1,7 @@
 import { YieldWrap } from "../gen.ts";
 import { Freer, Instr, RawFreer } from "./types.ts";
 
-export const mkFreer = <I extends Instr<any>, A>(freer: RawFreer<I, A>): Freer<I, A> => {
+export const freerMk = <I extends Instr<any>, A>(freer: RawFreer<I, A>): Freer<I, A> => {
   Object.defineProperty(freer, Symbol.iterator, {
     configurable: true,
     enumerable: false,

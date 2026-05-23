@@ -9,7 +9,8 @@ tags:
 # E12.2 Exercises: Freer + FTCQueue
 
 > [!info] Context
-> Эти упражнения ведут к реализации E12.2, но не дают готовый drop-in код. Цель: заменить одно продолжение в `FreerImpure` на очередь продолжений и подтвердить линейный рост на left-associated benchmark.
+> Эти упражнения ведут к реализации E12.2, но не дают готовый drop-in код. Цель: заменить одно продолжение в
+`FreerImpure` на очередь продолжений и подтвердить линейный рост на left-associated benchmark.
 
 ## 1. Найди старую точку квадрата
 
@@ -82,9 +83,9 @@ current = applyQueue(current.queue, resp);
 Запусти:
 
 ```bash
-pnpm exec vitest run test-vasya/exercises-part11.test.ts
-pnpm exec vitest run test-vasya/monad-laws.test.ts
-pnpm exec vitest run test-vasya/integration.test.ts
+pnpm exec vitest run tests/exercises-part11.test.ts
+pnpm exec vitest run tests/monad-laws.test.ts
+pnpm exec vitest run tests/integration.test.ts
 ```
 
 Если E11 падает после E12.2, сначала исправь семантику очереди, а не benchmark.
@@ -104,9 +105,11 @@ for (let i = 0; i < n; i++) {
 
 Проверь `n = 1_000`, `10_000`, `100_000`.
 
-Не делай test, который требует конкретных миллисекунд. Лучше печатай таблицу и добавь отдельный smoke-test “100k строится без stack overflow”.
+Не делай test, который требует конкретных миллисекунд. Лучше печатай таблицу и добавь отдельный smoke-test “100k
+строится без stack overflow”.
 
 ## 8. Контрольный вопрос
 
-Почему Codensity тоже решает left association, но хуже подходит, когда interpreter должен смотреть на первую инструкцию программы?
+Почему Codensity тоже решает left association, но хуже подходит, когда interpreter должен смотреть на первую инструкцию
+программы?
 

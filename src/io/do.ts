@@ -1,0 +1,22 @@
+import { bind } from "./combinators/index.ts";
+import { pure, suspend } from "./constructors/index.ts";
+import { IO, IOGen } from "./core/types.ts";
+
+export const doIO = <A>(genFn: () => IOGen<A>): IO<A> =>
+  suspend(() => {
+    /*всегда новый генератор*/
+    const gen = genFn();
+
+    const walk = (v: unknown): IO<A> => {
+      const result = gen.next(v);
+
+      if (result.done) {
+        return pure(result.value);
+      }
+
+      /* Избегаем вложенную рекурсию с помощью suspend*/
+      return bind(result.value.value, (v) => suspend(() => walk(v)));
+    };
+
+    return walk(undefined);
+  });
